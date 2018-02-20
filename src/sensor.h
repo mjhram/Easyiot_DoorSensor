@@ -217,7 +217,7 @@ void setup_wifi() {
   }
   
   Serial.println(WiFi.localIP());
-  timer.setInterval(5*60*000, Repeate5m);
+  timer.setInterval(300000, Repeate5m);
 }
 
 #endif
