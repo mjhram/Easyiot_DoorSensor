@@ -16,7 +16,7 @@
 #include <ESP8266mDNS.h>
 RemoteDebug Debug;
 #define HOST_NAME "remotedebug-sample"
-//github added
+
 #include "sensor.h"
 
 #include "Page_Admin.h"
