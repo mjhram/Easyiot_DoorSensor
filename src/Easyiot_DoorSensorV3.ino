@@ -14,6 +14,8 @@
 #include "RemoteDebug.h"
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
+#include <ArduinoOTA.h>
+
 RemoteDebug Debug;
 #define HOST_NAME "remotedebug-sample"
 
@@ -30,9 +32,6 @@ RemoteDebug Debug;
 #include "PAGE_NetworkConfiguration.h"
 
 #include "example.h"
-
-
-
 
 
 void setup(){
@@ -120,6 +119,10 @@ void setup(){
     Serial.println("connectionstate.html"); 
     send_connection_state_values_html(request);
     }  );
+    server.on ( "/admin/disarm", [](AsyncWebServerRequest *request) { 
+    Serial.println("connectionstate.html"); 
+    send_disarm_values_html(request);
+    }  );
 
 
   server.on ( "/info.html", [](AsyncWebServerRequest *request) { 
@@ -170,6 +173,8 @@ void setup(){
 
   tkSecond.attach(1,Second_Tick);
   UDPNTPClient.begin(2390);  // Port for NTP receive
+
+  setupOTA();
 }
 
 
@@ -192,6 +197,7 @@ void runOnce() {
 
 long mTimeSeconds =0;
 void loop(){
+  ArduinoOTA.handle();
   if (config.Update_Time_Via_NTP_Every  > 0 )
   {
     if (cNTP_Update > 5 && firstStart)
@@ -243,7 +249,7 @@ void loop(){
 
   if(!WiFi.isConnected()) {
     wifiReconnectTimer.once(30, reconnectToWifi);
-  }else if(WiFi.isConnected() && mqttClient.connected() && newEvent && !isNotifying) {
+  }else if(WiFi.isConnected() && mqttClient.connected() && newEvent && !isNotifying && !disarm) {
     isNotifying = true;
     timer.setTimer(500, runOnce, 1);
     Serial.println("New Event...");

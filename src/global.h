@@ -17,6 +17,7 @@ Ticker tkSecond;												// Second - Timer for Updating Datetime Structure
 boolean AdminEnabled = false;		// Enable Admin Mode for a given Time
 byte Minute_Old = 100;				// Helpvariable for checking, when a new Minute comes up (for Auto Turn On / Off)
 bool ntpSyncd = false;
+bool disarm = false;
 
 
 struct strConfig {
@@ -42,7 +43,7 @@ struct strConfig {
 	byte LED_B;
 
   uint moduleId;  // module id
-  bool state;     // state
+  boolean state;     // state
 }   config;
 
 
@@ -147,7 +148,7 @@ void WriteConfig()
 	EEPROM.write(305,config.TurnOffMinute);
 	WriteStringToEEPROM(306,config.DeviceName);
 	EEPROM.write(338,config.moduleId);
-  EEPROM.write(339,config.state);
+  	EEPROM.write(339,config.state);
 
 	EEPROM.commit();
 }
@@ -194,8 +195,8 @@ boolean ReadConfig()
 		config.TurnOffHour = EEPROM.read(304);
 		config.TurnOffMinute = EEPROM.read(305);
 		config.DeviceName= ReadStringFromEEPROM(306);
-    config.moduleId = EEPROM.read(338);
-    config.state =  EEPROM.read(339);
+		config.moduleId = EEPROM.read(338);
+		config.state =  EEPROM.read(339);
 		return true;
 		
 	}

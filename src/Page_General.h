@@ -18,6 +18,12 @@ const char PAGE_AdminGeneralSettings[] PROGMEM =  R"=====(
 	<td align="left" colspan="2"><hr></td>
 </tr>
 
+<tr><td align="center"><a id="disarm" name="disarm" href="javascript:Disarm()" style="width:150px" class="btn btn--m btn--blue">Disarm</a></td></tr>
+
+<tr>
+	<td align="left" colspan="2"><hr></td>
+</tr>
+
 <tr>
 	<td align="left" colspan="2">Turn on at</td>
 </tr>
@@ -47,7 +53,10 @@ const char PAGE_AdminGeneralSettings[] PROGMEM =  R"=====(
 <script>
 
  
-
+function Disarm()
+{
+	setValues("/admin/disarm");
+}
 window.onload = function ()
 {
 	load("style.css","css", function() 
@@ -107,6 +116,7 @@ void send_general_configuration_values_html(AsyncWebServerRequest *server)
 {
 	String values ="";
 	values += "devicename|" +  (String)  config.DeviceName +  "|input\n";
+	values += "disarm|" +  (String)  (disarm?"Arm":"Disarm") +  "|div\n";
 	values += "tonhour|" +  (String)  config.TurnOnHour +  "|input\n";
 	values += "tonminute|" +   (String) config.TurnOnMinute +  "|input\n";
 	values += "toffhour|" +  (String)  config.TurnOffHour +  "|input\n";
@@ -115,4 +125,14 @@ void send_general_configuration_values_html(AsyncWebServerRequest *server)
 	values += "tonenabled|" +  (String) (config.AutoTurnOn ? "checked" : "") + "|chk\n";
 	server->send ( 200, "text/plain", values);
 	Serial.println(__FUNCTION__); 
+}
+
+void send_disarm_values_html(AsyncWebServerRequest *server){
+	String values ="";
+	values += "disarm|" +  (String)  (disarm?"Disarm":"Arm") +  "|div\n";
+	server->send ( 200, "text/plain", values);
+	Serial.println(__FUNCTION__); 
+	disarm = !disarm;
+	Serial.print("Disarm=");
+	Serial.println(disarm);
 }
