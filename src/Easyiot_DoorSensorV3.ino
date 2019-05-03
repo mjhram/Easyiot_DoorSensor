@@ -15,6 +15,7 @@
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
+#include <ThingSpeak.h>
 
 RemoteDebug Debug;
 #define HOST_NAME "remotedebug-sample"
@@ -33,6 +34,9 @@ RemoteDebug Debug;
 
 #include "example.h"
 
+WiFiClient client;
+unsigned long myChannelNumber = 772321;
+const char * myWriteAPIKey = "1L8YUJBDUEJ8OFMR";
 
 void setup(){
   EEPROM.begin(512);
@@ -85,6 +89,7 @@ void setup(){
   Serial.println(WiFi.localIP());
   */
   setup_wifi();
+  ThingSpeak.begin(client);
   setupTelnet();
   SPIFFS.begin();
 
@@ -186,8 +191,21 @@ void runOnce() {
     isNotifying = false;
     {
         valueStr = String(doorEvent.state);
-        topic  = "/"+String(config.moduleId)+ "/Sensor.Parameter1";
-        result = mqttClient.publish(topic.c_str(), 0, true, valueStr.c_str(), true);    
+        /*topic  = "/"+String(config.moduleId)+ "/Sensor.Parameter1";
+        result = mqttClient.publish(topic.c_str(), 0, true, valueStr.c_str(), true); 
+        */
+        int x = ThingSpeak.writeField(myChannelNumber, 1, doorEvent.state, myWriteAPIKey);
+        if(x == 200){
+          Serial.println("Channel update successful.");
+          DEBUG_V("Channel update successful\n");
+        }
+        else{
+          Serial.println("Problem updating channel. HTTP error code " + String(x));
+          DEBUG_V("Problem updating channel\n");
+        }
+        if(doorEvent.state==1) {
+            runAsyncClient();   
+        }
         Serial.print("Publish ");
         Serial.print(topic);
         Serial.print(" ");
@@ -251,11 +269,57 @@ void loop(){
     wifiReconnectTimer.once(30, reconnectToWifi);
   }else if(WiFi.isConnected() && mqttClient.connected() && newEvent && !isNotifying && !disarm) {
     isNotifying = true;
-    timer.setTimer(500, runOnce, 1);
+    timer.setTimeout(2000, runOnce);
     Serial.println("New Event...");
   } 
   Debug.handle();
   timer.run();
+}
+
+static AsyncClient * aClient = NULL;
+
+void runAsyncClient(){
+  if(aClient)//client already exists
+    return;
+
+  aClient = new AsyncClient();
+  if(!aClient)//could not allocate client
+    return;
+
+  aClient->onError([](void * arg, AsyncClient * client, int error){
+    Serial.println("Connect Error");
+    aClient = NULL;
+    delete client;
+  }, NULL);
+
+  aClient->onConnect([](void * arg, AsyncClient * client){
+    Serial.println("Connected");
+    aClient->onError(NULL, NULL);
+
+    client->onDisconnect([](void * arg, AsyncClient * c){
+      Serial.println("Disconnected");
+      aClient = NULL;
+      delete c;
+    }, NULL);
+
+    client->onData([](void * arg, AsyncClient * c, void * data, size_t len){
+      Serial.print("\r\nData: ");
+      Serial.println(len);
+      uint8_t * d = (uint8_t*)data;
+      for(size_t i=0; i<len;i++)
+        Serial.write(d[i]);
+    }, NULL);
+
+    //send the request
+    client->write("GET /trigger/door_closed/with/key/nATYSPRWzpXrZ341TzTSf HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n");
+  }, NULL);
+
+  if(!aClient->connect("maker.ifttt.com", 80)){
+    Serial.println("Connect Fail");
+    AsyncClient * client = aClient;
+    aClient = NULL;
+    delete client;
+  }
 }
 
 
