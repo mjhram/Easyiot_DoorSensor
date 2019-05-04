@@ -56,7 +56,7 @@ struct strConfig {
 bool bReconnect = false;
 
 void reconnectCheck() {
-  Serial.print(".");
+  wserial.print(".");
   if(WiFi.status() == WL_CONNECTED) {
     bReconnect = false;
   }
@@ -64,18 +64,18 @@ void reconnectCheck() {
 //has an issue when re-establishing a connection
 void ConfigureWifi()
 {
-	Serial.println("Configuring Wifi");
-   Serial.println(config.ssid.c_str());
-   Serial.print("=>");
-   Serial.print(config.password.c_str());
+	wserial.println("Configuring Wifi");
+   wserial.println(config.ssid.c_str());
+   wserial.print("=>");
+   wserial.print(config.password.c_str());
    //disconnect WiFi
    WiFi.disconnect(true);
-   Serial.println("Dis-connnecting");
+   wserial.println("Dis-connnecting");
    while(WiFi.status() == WL_CONNECTED){
       delay(1000);
-      Serial.print(".");
+      wserial.print(".");
    }
-   Serial.println("connnecting");
+   wserial.println("connnecting");
    WiFi.persistent(false);
 WiFi.mode(WIFI_OFF);
 WiFi.mode(WIFI_STA);
@@ -93,17 +93,17 @@ WiFi.begin(ssid, password);
   while (/*bReconnect == true*/ WiFi.status() != WL_CONNECTED /*&& i++ < (AP_CONNECT_TIME*2)*/) {
     delay(1000);
     //#ifdef DEBUG
-      Serial.print(".");
+      wserial.print(".");
     //#endif
   }
   //timer.disable(reconnectCheckId);*/
- Serial.println(WiFi.localIP());
+ wserial.println(String(WiFi.localIP()));
 }
 #define VERSION_1 'B'
 void WriteConfig()
 {
 
-	Serial.println("Writing Config");
+	wserial.println("Writing Config");
 	EEPROM.write(0,VERSION_1);
 	EEPROM.write(1,'F');
 	EEPROM.write(2,'G');
@@ -155,10 +155,10 @@ void WriteConfig()
 boolean ReadConfig()
 {
 
-	Serial.println("Reading Configuration");
+	wserial.println("Reading Configuration");
 	if (EEPROM.read(0) == VERSION_1 && EEPROM.read(1) == 'F'  && EEPROM.read(2) == 'G' )
 	{
-		Serial.println("Configurarion Found!");
+		wserial.println("Configurarion Found!");
 		config.dhcp = 	EEPROM.read(16);
 
 		config.daylight = EEPROM.read(17);
@@ -202,7 +202,7 @@ boolean ReadConfig()
 	}
 	else
 	{
-		Serial.println("Configurarion NOT FOUND!!!!");
+		wserial.println("Configurarion NOT FOUND!!!!");
 		return false;
 	}
 }
@@ -223,7 +223,7 @@ void NTPRefresh() {
 		//sendNTPpacket(timeServerIP); // send an NTP packet to a time server
 
 
-		Serial.println("sending NTP packet...");
+		wserial.println("sending NTP packet...");
 		memset(packetBuffer, 0, NTP_PACKET_SIZE);
 		packetBuffer[0] = 0b11100011;   // LI, Version, Mode
 		packetBuffer[1] = 0;     // Stratum, or type of clock
@@ -242,12 +242,12 @@ void NTPRefresh() {
   
 		int cb = UDPNTPClient.parsePacket();
 		if (!cb) {
-			Serial.println("NTP no packet yet");
+			wserial.println("NTP no packet yet");
 		}
 		else 
 		{
-			Serial.print("NTP packet received, length=");
-			Serial.println(cb);
+			wserial.print("NTP packet received, length=");
+			wserial.println(String(cb));
 			UDPNTPClient.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
 			unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
 			unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);

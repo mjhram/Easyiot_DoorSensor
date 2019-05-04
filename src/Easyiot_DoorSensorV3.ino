@@ -9,15 +9,18 @@
 #include <EEPROM.h>
 #include <WiFiUdp.h>
 #include "helpers.h"
+#include "wSerial.h"
+
+RemoteDebug Debug;
+wSerial wserial(Debug);
 #include "global.h"
 //Telent
-#include "RemoteDebug.h"
+//#include "RemoteDebug.h"
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
 #include <ThingSpeak.h>
 
-RemoteDebug Debug;
 #define HOST_NAME "remotedebug-sample"
 
 #include "sensor.h"
@@ -31,6 +34,7 @@ RemoteDebug Debug;
 #include "Page_Information.h"
 #include "Page_General.h"
 #include "PAGE_NetworkConfiguration.h"
+#include "PAGE_ForceEvent.h"
 
 #include "example.h"
 
@@ -40,7 +44,7 @@ const char * myWriteAPIKey = "1L8YUJBDUEJ8OFMR";
 
 void setup(){
   EEPROM.begin(512);
-  Serial.begin(115200);
+  wserial.begin(115200);
   delay(500);
   initSetup();
   if (!ReadConfig())
@@ -68,25 +72,25 @@ void setup(){
     config.state = 0; // off
     
     WriteConfig();
-    Serial.println("General config applied");
+    wserial.println("General config applied");
   }
   /*
   //ConfigureWifi();
   WiFi.mode(WIFI_STA);
   WiFi.begin(config.ssid.c_str(), config.password.c_str());
   
-  Serial.println("Connecting to WiFi");
+  wserial.println("Connecting to WiFi");
   long time1 = millis();
   while (WiFi.status() != WL_CONNECTED && (millis()-time1 < 20000)) {
     delay(1000);
-    Serial.print(".");
+    wserial.print(".");
   }
   if(WiFi.status() != WL_CONNECTED) {
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP( ACCESS_POINT_NAME);
   }
   
-  Serial.println(WiFi.localIP());
+  wserial.println(WiFi.localIP());
   */
   setup_wifi();
   ThingSpeak.begin(client);
@@ -102,36 +106,44 @@ void setup(){
     //processExample(request);
     });
     
-  server.on ( "/favicon.ico",   [](AsyncWebServerRequest *server) { Serial.println("favicon.ico"); 
+  server.on ( "/favicon.ico",   [](AsyncWebServerRequest *server) { wserial.println("favicon.ico"); 
     server->send ( SPIFFS, "/favicon.ico" );  
      
   }  );
 
    server.on ( "/admin.html", [](AsyncWebServerRequest *server) { 
-    Serial.println("admin.html"); 
+    wserial.println("admin.html"); 
     server->send ( 200, "text/html", PAGE_AdminMainPage );   
+    }  );
+    server.on ( "/forceEvent.html", [](AsyncWebServerRequest *server) { 
+      wserial.println("forceEvent.html"); 
+      server->send ( 200, "text/html", PAGE_ForceEvent );   
+    }  );
+    server.on ( "/force/opendoor", [](AsyncWebServerRequest *request) { 
+    wserial.println("/force/opendoor"); 
+    send_force_event_html(request);
     }  );
 
   server.on ( "/config.html", [](AsyncWebServerRequest *request) { 
-    Serial.println("config.html"); 
+    wserial.println("config.html"); 
     send_network_configuration_html(request);
     }  );
   server.on ( "/admin/values", [](AsyncWebServerRequest *request) { 
-    Serial.println("values.html"); 
+    wserial.println("values.html"); 
     send_network_configuration_values_html(request);
     }  );
    server.on ( "/admin/connectionstate", [](AsyncWebServerRequest *request) { 
-    Serial.println("connectionstate.html"); 
+    wserial.println("connectionstate.html"); 
     send_connection_state_values_html(request);
     }  );
     server.on ( "/admin/disarm", [](AsyncWebServerRequest *request) { 
-    Serial.println("connectionstate.html"); 
+    wserial.println("connectionstate.html"); 
     send_disarm_values_html(request);
     }  );
 
 
   server.on ( "/info.html", [](AsyncWebServerRequest *request) { 
-    Serial.println("info.html"); 
+    wserial.println("info.html"); 
     request->send ( 200, "text/html", PAGE_Information );   
     }  );
   server.on ( "/admin/infovalues", [](AsyncWebServerRequest *request) { 
@@ -139,24 +151,24 @@ void setup(){
   });
   
   server.on ( "/ntp.html", [](AsyncWebServerRequest *request) { 
-    Serial.println("ntp.html"); 
+    wserial.println("ntp.html"); 
     send_NTP_configuration_html(request);   
     }  );
   server.on ( "/admin/ntpvalues", [](AsyncWebServerRequest *request) { 
-    Serial.println("ntp.html"); 
+    wserial.println("ntp.html"); 
     send_NTP_configuration_values_html(request);   
     }  );
 
   server.on ( "/general.html", [](AsyncWebServerRequest *request) { 
-    Serial.println("general.html"); 
+    wserial.println("general.html"); 
     send_general_html(request);   
     }  );
     server.on ( "/admin/generalvalues", [](AsyncWebServerRequest *request) { 
-    Serial.println("general.html"); 
+    wserial.println("general.html"); 
     send_general_configuration_values_html(request);   
     }  );
     server.on ( "/admin/devicename",     [](AsyncWebServerRequest *request) { 
-    Serial.println("general.html"); 
+    wserial.println("general.html"); 
     send_devicename_value_html(request);   
     }  );
 
@@ -166,11 +178,11 @@ void setup(){
     filldynamicdata(request);
     });
   server.on ( "/style.css", [](AsyncWebServerRequest *request) { 
-    Serial.println("style.css"); 
+    wserial.println("style.css"); 
     request->send ( 200, "text/plain", PAGE_Style_css );  
     } );
   server.on ( "/microajax.js", [](AsyncWebServerRequest *request) { 
-    Serial.println("microajax.js"); 
+    wserial.println("microajax.js"); 
     request->send ( 200, "text/plain", PAGE_microajax_js );  
     } );
   
@@ -189,28 +201,43 @@ void runOnce() {
     String valueStr("");
     newEvent = false;
     isNotifying = false;
-    {
+
+    DEBUG_V("DoorValue:%d\n", doorEvent.state);
+    if(sendIfttt) {
+        runAsyncClient();   
+    }
         valueStr = String(doorEvent.state);
-        /*topic  = "/"+String(config.moduleId)+ "/Sensor.Parameter1";
+        /*//publish to easyiot
+        topic  = "/"+String(config.moduleId)+ "/Sensor.Parameter1";
         result = mqttClient.publish(topic.c_str(), 0, true, valueStr.c_str(), true); 
         */
-        int x = ThingSpeak.writeField(myChannelNumber, 1, doorEvent.state, myWriteAPIKey);
+        //data string
+        String data = String("field1=" + valueStr + "&field2=" + valueStr);
+        int length = data.length();
+        char msgBuffer[length];
+        data.toCharArray(msgBuffer,length+1);
+        wserial.println(msgBuffer);
+        //topic string
+        String topicString ="channels/" + String( myChannelNumber ) + "/publish/"+String(myWriteAPIKey);
+        /*length=topicString.length();
+        char topicBuffer[length];
+        topicString.toCharArray(topicBuffer,length+1);*/
+        result = mqttClient.publish(topicString.c_str(), 0, true, data.c_str(), true); 
+        DEBUG_V("publishing...\n");
+        
+        /*int x = ThingSpeak.writeField(myChannelNumber, 1, doorEvent.state, myWriteAPIKey);
         if(x == 200){
-          Serial.println("Channel update successful.");
+          wserial.println("Channel update successful.");
           DEBUG_V("Channel update successful\n");
         }
         else{
-          Serial.println("Problem updating channel. HTTP error code " + String(x));
+          wserial.println("Problem updating channel. HTTP error code " + String(x));
           DEBUG_V("Problem updating channel\n");
-        }
-        if(doorEvent.state==1) {
-            runAsyncClient();   
-        }
-        Serial.print("Publish ");
-        Serial.print(topic);
-        Serial.print(" ");
-        Serial.println(valueStr);
-    }
+        }*/        
+        wserial.print("Publish ");
+        wserial.print(topic);
+        wserial.print(" ");
+        wserial.println(valueStr);
 }
 
 long mTimeSeconds =0;
@@ -239,7 +266,7 @@ void loop(){
      {
        if (DateTime.hour == config.TurnOnHour && DateTime.minute == config.TurnOnMinute)
        {
-          Serial.println("SwitchON");
+          wserial.println("SwitchON");
        }
      }
 
@@ -249,7 +276,7 @@ void loop(){
      {
        if (DateTime.hour == config.TurnOffHour && DateTime.minute == config.TurnOffMinute)
        {
-          Serial.println("SwitchOff");
+          wserial.println("SwitchOff");
        }
      }
   }
@@ -258,9 +285,9 @@ void loop(){
   {
     mTimeSeconds++;
     Refresh = false;
-    Serial.print(".");
-    //Serial.println("Refreshing...");
-    //Serial.printf("FreeMem:%d %d:%d:%d %d.%d.%d \n",ESP.getFreeHeap() , DateTime.hour,DateTime.minute, DateTime.second, DateTime.year, DateTime.month, DateTime.day);
+    wserial.print(".");
+    //wserial.println("Refreshing...");
+    //wserial.printf("FreeMem:%d %d:%d:%d %d.%d.%d \n",ESP.getFreeHeap() , DateTime.hour,DateTime.minute, DateTime.second, DateTime.year, DateTime.month, DateTime.day);
     DEBUG_V("* Time: %u seconds (VERBOSE)\n", mTimeSeconds);
 
   }
@@ -270,7 +297,7 @@ void loop(){
   }else if(WiFi.isConnected() && mqttClient.connected() && newEvent && !isNotifying && !disarm) {
     isNotifying = true;
     timer.setTimeout(2000, runOnce);
-    Serial.println("New Event...");
+    wserial.println("New Event...");
   } 
   Debug.handle();
   timer.run();
@@ -279,43 +306,51 @@ void loop(){
 static AsyncClient * aClient = NULL;
 
 void runAsyncClient(){
-  if(aClient)//client already exists
-    return;
+  //if(aClient)//client already exists
+    //return;
 
   aClient = new AsyncClient();
-  if(!aClient)//could not allocate client
+  if(!aClient){
+    //could not allocate client
+    DEBUG_V("could not allocate client");
     return;
-
-  aClient->onError([](void * arg, AsyncClient * client, int error){
-    Serial.println("Connect Error");
+  }
+  aClient->onError([](void * arg, AsyncClient * client, err_t error){
+    wserial.println("Connect Error");
+    DEBUG_V("Connect Error\n");
     aClient = NULL;
     delete client;
   }, NULL);
 
   aClient->onConnect([](void * arg, AsyncClient * client){
-    Serial.println("Connected");
+    wserial.println("Connected");
+    DEBUG_V("connected");
     aClient->onError(NULL, NULL);
 
     client->onDisconnect([](void * arg, AsyncClient * c){
-      Serial.println("Disconnected");
+      wserial.println("Disconnected");
+      DEBUG_V("disconnected");
       aClient = NULL;
       delete c;
     }, NULL);
 
     client->onData([](void * arg, AsyncClient * c, void * data, size_t len){
-      Serial.print("\r\nData: ");
-      Serial.println(len);
+      wserial.print("\r\nData: ");
+      wserial.println(String(len));
       uint8_t * d = (uint8_t*)data;
       for(size_t i=0; i<len;i++)
-        Serial.write(d[i]);
+        wserial.write(d[i]);
     }, NULL);
 
     //send the request
     client->write("GET /trigger/door_closed/with/key/nATYSPRWzpXrZ341TzTSf HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n");
+    DEBUG_V("IFTTT triggered\n");
+    sendIfttt = false;//it is false once IFTTT is triggered.
   }, NULL);
-
+  
   if(!aClient->connect("maker.ifttt.com", 80)){
-    Serial.println("Connect Fail");
+    wserial.println("Connect Fail");
+    DEBUG_V("Connect Fail");
     AsyncClient * client = aClient;
     aClient = NULL;
     delete client;

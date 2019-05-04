@@ -7,10 +7,17 @@
 const char* http_username = "admin";
 const char* http_password = "admin";
 
+
 #define EIOTCLOUD_MODULEID 4
-#define EIOTCLOUD_USERNAME "mjhram"
-#define EIOTCLOUD_PASSWORD "passinto"
-#define EIOT_CLOUD_ADDRESS "cloud.iot-playground.com"
+/*
+#define MQTT_USERNAME "mjhram"
+#define MQTT_PASSWORD "passinto"
+#define MQTT_ADDRESS "cloud.iot-playground.com"
+*/
+#define MQTT_CLIENTID "MQTTTEST2"
+#define MQTT_USERNAME "TSArduinoMQTTDemo"
+#define MQTT_PASSWORD "Y3OP4BB8DOEOA33G"
+#define MQTT_ADDRESS "mqtt.thingspeak.com"
 
 AsyncMqttClient mqttClient;
 Ticker mqttReconnectTimer;
@@ -28,13 +35,13 @@ struct EventStruct {
   long time;
 };
 volatile EventStruct doorEvent;
-volatile bool newEvent, isNotifying; 
+volatile bool newEvent, isNotifying, sendIfttt; 
 
 const int buttonPin = D1;//D3; //D3 is flash Button
 const int outPin = D4;  //D4 == 2 is LED
 
 void connectToMqtt() {
-  Serial.println("Connecting to MQTT...");
+  wserial.println("Connecting to MQTT...");
   if(!mqttClient.connected()) {
       mqttClient.connect();
       state = 1;
@@ -44,32 +51,32 @@ void connectToMqtt() {
 }
 
 void onMqttConnect(bool sessionPresent) {
-  Serial.println("Connected to MQTT.");
-  Serial.print("Session present: ");
-  Serial.println(sessionPresent);
+  wserial.println("Connected to MQTT.");
+  wserial.print("Session present: ");
+  wserial.println(sessionPresent?"True":"False");
 
   /*uint16_t packetIdSub = mqttClient.subscribe("/4/Sensor.Parameter1", 0);
-  Serial.print("Subscribing at QoS 2, packetId: ");
-  Serial.println(packetIdSub);
+  wserial.print("Subscribing at QoS 2, packetId: ");
+  wserial.println(packetIdSub);
   
   uint16_t packetIdSub = mqttClient.subscribe("/NewModule", 0);
-  Serial.print("Subscribing at QoS 2, packetId: ");
-  Serial.println(packetIdSub);
+  wserial.print("Subscribing at QoS 2, packetId: ");
+  wserial.println(packetIdSub);
   mqttClient.publish("test/lol", 0, true, "test 1");
-  Serial.println("Publishing at QoS 0");
+  wserial.println("Publishing at QoS 0");
   uint16_t packetIdPub1 = mqttClient.publish("/4/Sensor.Parameter1", 0, true, "0");
-  Serial.print("Publishing at QoS 1, packetId: ");
-  Serial.println(packetIdPub1);
+  wserial.print("Publishing at QoS 1, packetId: ");
+  wserial.println(packetIdPub1);
   //uint16_t packetIdPub2 = mqttClient.publish("test/lol", 2, true, "test 3");
-  //Serial.print("Publishing at QoS 2, packetId: ");
-  //Serial.println(packetIdPub2);
+  //wserial.print("Publishing at QoS 2, packetId: ");
+  //wserial.println(packetIdPub2);
   */
   state = 0;
 }
 
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-  Serial.println("Disconnected from MQTT.");
+  wserial.println("Disconnected from MQTT.");
 
   if (WiFi.isConnected()) {
     mqttReconnectTimer.once(2, connectToMqtt);
@@ -78,41 +85,41 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
 }
 
 void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
-  Serial.println("Subscribe acknowledged.");
-  Serial.print("  packetId: ");
-  Serial.println(packetId);
-  Serial.print("  qos: ");
-  Serial.println(qos);
+  wserial.println("Subscribe acknowledged.");
+  wserial.print("  packetId: ");
+  wserial.println(String(packetId));
+  wserial.print("  qos: ");
+  wserial.println(String(qos));
 }
 
 void onMqttUnsubscribe(uint16_t packetId) {
-  Serial.println("Unsubscribe acknowledged.");
-  Serial.print("  packetId: ");
-  Serial.println(packetId);
+  wserial.println("Unsubscribe acknowledged.");
+  wserial.print("  packetId: ");
+  wserial.println(String(packetId));
 }
 
 void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
-  Serial.println("Publish received.");
-  Serial.print("  topic: ");
-  Serial.println(topic);
-  Serial.print("  qos: ");
-  Serial.println(properties.qos);
-  Serial.print("  dup: ");
-  Serial.println(properties.dup);
-  Serial.print("  retain: ");
-  Serial.println(properties.retain);
-  Serial.print("  len: ");
-  Serial.println(len);
-  Serial.print("  index: ");
-  Serial.println(index);
-  Serial.print("  total: ");
-  Serial.println(total);
+  wserial.println("Publish received.");
+  wserial.print("  topic: ");
+  wserial.println(topic);
+  wserial.print("  qos: ");
+  wserial.println(String(properties.qos));
+  wserial.print("  dup: ");
+  wserial.println(String(properties.dup));
+  wserial.print("  retain: ");
+  wserial.println(String(properties.retain));
+  wserial.print("  len: ");
+  wserial.println(String(len));
+  wserial.print("  index: ");
+  wserial.println(String(index));
+  wserial.print("  total: ");
+  wserial.println(String(total));
 }
 
 void onMqttPublish(uint16_t packetId) {
-  Serial.println("Publish acknowledged.");
-  Serial.print("  packetId: ");
-  Serial.println(packetId);
+  wserial.println("Publish acknowledged.");
+  wserial.print("  packetId: ");
+  wserial.println(String(packetId));
 }
 
 
@@ -120,19 +127,19 @@ void reconnectToWifi() {
   if(WiFi.isConnected() && WiFi.localIP().toString() != "0.0.0.0") {
     return;
   }
-  Serial.println("Connecting to Wi-Fi...");
+  wserial.println("Connecting to Wi-Fi...");
   //WiFi.begin(config.ssid.c_str(), config.password.c_str());
   WiFi.reconnect();
 }
 
 
 void onWifiConnect(const WiFiEventStationModeGotIP& event) {
-  Serial.println("Connected to Wi-Fi.");
+  wserial.println("Connected to Wi-Fi.");
   connectToMqtt();
 }
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
-  Serial.println("Disconnected from Wi-Fi.");
+  wserial.println("Disconnected from Wi-Fi.");
   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(10, reconnectToWifi);
   state = 1;
@@ -143,22 +150,26 @@ void repeat1s(){
   if (state==1) {
     ledState =!ledState;
     digitalWrite(outPin, ledState?HIGH:LOW);
-    Serial.print("-");
+    wserial.print("-");
   }
 }
 
 void handleInterrupt() {
-  Serial.println("inteterrupt");
+  wserial.println("inteterrupt");
   doorEvent.state = digitalRead(buttonPin);
   doorEvent.time  = millis();
   newEvent = true;
-      Serial.print("button state:");
-      Serial.println(doorEvent.state);
+  if(doorEvent.state==1){
+    sendIfttt = true;
+  }
+  wserial.print("button state:");
+  wserial.println(String(doorEvent.state));
 }
 
 void initSetup() {
   newEvent = false;
   isNotifying = false;
+  sendIfttt = false;
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(outPin, OUTPUT); 
   pinMode(D0, OUTPUT); digitalWrite(D0, HIGH); //will use it for reseting
@@ -174,14 +185,15 @@ void initSetup() {
   mqttClient.onUnsubscribe(onMqttUnsubscribe);
   mqttClient.onMessage(onMqttMessage);
   mqttClient.onPublish(onMqttPublish);
-  mqttClient.setServer(EIOT_CLOUD_ADDRESS, 1883);
-  mqttClient.setCredentials(EIOTCLOUD_USERNAME, EIOTCLOUD_PASSWORD);
+  mqttClient.setClientId(MQTT_CLIENTID);
+  mqttClient.setServer(MQTT_ADDRESS, 1883);
+  mqttClient.setCredentials(MQTT_USERNAME, MQTT_PASSWORD);
 }
 
 void setupTelnet() {
   if (MDNS.begin(HOST_NAME)) {
-        Serial.print("* MDNS responder started. Hostname -> ");
-        Serial.println(HOST_NAME);
+        wserial.print("* MDNS responder started. Hostname -> ");
+        wserial.println(HOST_NAME);
     }
     MDNS.addService("telnet", "tcp", 23);
     Debug.begin(HOST_NAME); // Initiaze the telnet server
@@ -201,11 +213,11 @@ void setup_wifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(config.ssid.c_str(), config.password.c_str());
   
-  Serial.println("Connecting to WiFi");
+  wserial.println("Connecting to WiFi");
   long time1 = millis();
   while (WiFi.status() != WL_CONNECTED && (millis()-time1 < AP_CONNECT_TIME*1000)) {
     delay(1000);
-    Serial.print(".");
+    wserial.print(".");
   }
   if(WiFi.status() != WL_CONNECTED) {
     WiFi.mode(WIFI_AP_STA);
@@ -216,7 +228,7 @@ void setup_wifi() {
     onWifiConnect(dummy);
   }
   
-  Serial.println(WiFi.localIP());
+  wserial.println(String(WiFi.localIP()));
   timer.setInterval(300000, Repeate5m);
 }
 
@@ -233,21 +245,21 @@ void setupOTA() {
       type = "filesystem";
 
     // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-    Serial.println("Start updating " + type);
+    wserial.println("Start updating " + type);
   });
   ArduinoOTA.onEnd([]() {
-    Serial.println("\nEnd");
+    wserial.println("\nEnd");
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    wserial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    wserial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) wserial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) wserial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) wserial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) wserial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) wserial.println("End Failed");
   });
   ArduinoOTA.begin();
 }
