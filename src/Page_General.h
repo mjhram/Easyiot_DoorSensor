@@ -89,7 +89,7 @@ void send_devicename_value_html(AsyncWebServerRequest *server)
 void send_general_html(AsyncWebServerRequest *server)
 {
 	
-	if (server->params() > 0 )  // Save Settings
+	if (server->params() > 0 )  // "Save" is clicked
 	{
 		config.AutoTurnOn = false;
 		config.AutoTurnOff = false;

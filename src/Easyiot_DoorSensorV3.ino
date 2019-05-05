@@ -11,6 +11,7 @@
 #include "helpers.h"
 #include "wSerial.h"
 
+#define RefreshTimerIsOn  false
 RemoteDebug Debug;
 wSerial wserial(Debug);
 #include "global.h"
@@ -117,13 +118,17 @@ void setup(){
     }  );
     server.on ( "/forceEvent.html", [](AsyncWebServerRequest *server) { 
       wserial.println("forceEvent.html"); 
-      server->send ( 200, "text/html", PAGE_ForceEvent );   
+      send_force_event_html(server);  
     }  );
     server.on ( "/force/opendoor", [](AsyncWebServerRequest *request) { 
     wserial.println("/force/opendoor"); 
-    send_force_event_html(request);
+    send_force_open_html(request);
     }  );
-
+    server.on ( "/force/mqttconnect", [](AsyncWebServerRequest *request) { 
+    wserial.println("/force/mqttconnect"); 
+    send_force_mqttconnect_html(request);
+    }  );
+    
   server.on ( "/config.html", [](AsyncWebServerRequest *request) { 
     wserial.println("config.html"); 
     send_network_configuration_html(request);
@@ -222,7 +227,7 @@ void runOnce() {
         /*length=topicString.length();
         char topicBuffer[length];
         topicString.toCharArray(topicBuffer,length+1);*/
-        result = mqttClient.publish(topicString.c_str(), 0, true, data.c_str(), true); 
+        result = mqttClient.publish(topicString.c_str(), 0, false, data.c_str()); 
         DEBUG_V("publishing...\n");
         
         /*int x = ThingSpeak.writeField(myChannelNumber, 1, doorEvent.state, myWriteAPIKey);
@@ -285,10 +290,12 @@ void loop(){
   {
     mTimeSeconds++;
     Refresh = false;
-    wserial.print(".");
-    //wserial.println("Refreshing...");
-    //wserial.printf("FreeMem:%d %d:%d:%d %d.%d.%d \n",ESP.getFreeHeap() , DateTime.hour,DateTime.minute, DateTime.second, DateTime.year, DateTime.month, DateTime.day);
-    DEBUG_V("* Time: %u seconds (VERBOSE)\n", mTimeSeconds);
+    if(RefreshTimerIsOn) {
+      wserial.print(".");
+      //wserial.println("Refreshing...");
+      //wserial.printf("FreeMem:%d %d:%d:%d %d.%d.%d \n",ESP.getFreeHeap() , DateTime.hour,DateTime.minute, DateTime.second, DateTime.year, DateTime.month, DateTime.day);
+      DEBUG_V("* Time: %u seconds (VERBOSE)\n", mTimeSeconds);
+    }
 
   }
 
