@@ -217,7 +217,7 @@ void runOnce() {
         result = mqttClient.publish(topic.c_str(), 0, true, valueStr.c_str(), true); 
         */
         //data string
-        String data = String("field1=" + valueStr + "&field2=" + valueStr);
+        String data = String("field1=" + valueStr);
         int length = data.length();
         char msgBuffer[length];
         data.toCharArray(msgBuffer,length+1);
@@ -315,7 +315,7 @@ static AsyncClient * aClient = NULL;
 void runAsyncClient(){
   //if(aClient)//client already exists
     //return;
-
+  wserial.println("runAsyncClient()");
   aClient = new AsyncClient();
   if(!aClient){
     //could not allocate client
