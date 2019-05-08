@@ -31,13 +31,48 @@ int state = 0;  //0: Normal working, LED=>OFF
                 //1: WiFi not connected (work as AP), Blink 1.2/1.2
                 //2: MQTT not connected. Blink .4/2
 struct EventStruct {
+  int pinIdx;
   int state;
   long time;
 };
 volatile EventStruct doorEvent;
 volatile bool newEvent, isNotifying, sendIfttt; 
+#define NPINS 2
+const int sensorPins[NPINS]={D1, D2};
 
-const int buttonPin = D1;//D3; //D3 is flash Button
+void handleInterrupt(int pinIdx) {
+  wserial.println("inteterrupt");
+  doorEvent.pinIdx = pinIdx;
+  doorEvent.state = 0;
+  wserial.print("Pins:");
+  if(pinIdx == -1) {
+    for(int kk=0; kk<NPINS;kk++){
+        int a = digitalRead(sensorPins[kk]);
+        doorEvent.state |= a;
+        wserial.print(String(a)+"--");
+    } 
+  } else {
+        int a = digitalRead(sensorPins[pinIdx]);
+        doorEvent.state = a;
+        wserial.print(String(a)+"");
+  }
+  wserial.println("");
+  doorEvent.time  = millis();
+  newEvent = true;
+  if(doorEvent.state==1){
+    sendIfttt = true;
+  }
+  wserial.print("button state:");
+  wserial.println(String(doorEvent.state));
+}
+void handleInterrupt1() {
+  handleInterrupt(0);
+}
+void handleInterrupt2() {
+  handleInterrupt(1);
+}
+//const int buttonPin = D1;//D3; //D3 is flash Button
+void (* handleInt[NPINS])() ={handleInterrupt1, handleInterrupt2};
 const int outPin = D4;  //D4 == 2 is LED
 
 void connectToMqtt() {
@@ -154,30 +189,22 @@ void repeat1s(){
   }
 }
 
-void handleInterrupt() {
-  wserial.println("inteterrupt");
-  doorEvent.state = digitalRead(buttonPin);
-  doorEvent.time  = millis();
-  newEvent = true;
-  if(doorEvent.state==1){
-    sendIfttt = true;
-  }
-  wserial.print("button state:");
-  wserial.println(String(doorEvent.state));
-}
-
 void initSetup() {
   newEvent = false;
   isNotifying = false;
   sendIfttt = false;
-  pinMode(buttonPin, INPUT_PULLUP);
+  
   pinMode(outPin, OUTPUT); 
   pinMode(D0, OUTPUT); digitalWrite(D0, HIGH); //will use it for reseting
-  attachInterrupt(digitalPinToInterrupt(buttonPin), handleInterrupt, CHANGE);
+  for (int kk=0; kk<NPINS;kk++) {
+    pinMode(sensorPins[kk], INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(sensorPins[kk]), handleInt[kk], CHANGE);
+  }
+  //attachInterrupt(digitalPinToInterrupt(buttonPin), handleInterrupt, CHANGE);
   digitalWrite(outPin, HIGH);
 
-  int switchState = digitalRead(buttonPin);
-  handleInterrupt(); //initially force send event 
+  //int switchState = digitalRead(buttonPin);
+  handleInterrupt(-1); //initially force send event 
 
   mqttClient.onConnect(onMqttConnect);
   mqttClient.onDisconnect(onMqttDisconnect);
@@ -201,7 +228,7 @@ void setupTelnet() {
 }
 
 void Repeate5m() {
-  handleInterrupt();
+  handleInterrupt(-1);
 }
 
 void setup_wifi() {

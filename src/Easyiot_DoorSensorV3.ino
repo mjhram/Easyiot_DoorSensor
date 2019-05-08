@@ -203,7 +203,6 @@ void setup(){
 void runOnce() {
     boolean result;
     String topic("");
-    String valueStr("");
     newEvent = false;
     isNotifying = false;
 
@@ -211,38 +210,46 @@ void runOnce() {
     if(sendIfttt) {
         runAsyncClient();   
     }
-        valueStr = String(doorEvent.state);
-        /*//publish to easyiot
-        topic  = "/"+String(config.moduleId)+ "/Sensor.Parameter1";
-        result = mqttClient.publish(topic.c_str(), 0, true, valueStr.c_str(), true); 
-        */
-        //data string
-        String data = String("field1=" + valueStr);
-        int length = data.length();
-        char msgBuffer[length];
-        data.toCharArray(msgBuffer,length+1);
-        wserial.println(msgBuffer);
-        //topic string
-        String topicString ="channels/" + String( myChannelNumber ) + "/publish/"+String(myWriteAPIKey);
-        /*length=topicString.length();
-        char topicBuffer[length];
-        topicString.toCharArray(topicBuffer,length+1);*/
-        result = mqttClient.publish(topicString.c_str(), 0, false, data.c_str()); 
-        DEBUG_V("publishing...\n");
-        
-        /*int x = ThingSpeak.writeField(myChannelNumber, 1, doorEvent.state, myWriteAPIKey);
-        if(x == 200){
-          wserial.println("Channel update successful.");
-          DEBUG_V("Channel update successful\n");
+    String valueStr = String(doorEvent.state);
+    /*//publish to easyiot
+    topic  = "/"+String(config.moduleId)+ "/Sensor.Parameter1";
+    result = mqttClient.publish(topic.c_str(), 0, true, valueStr.c_str(), true); 
+    */
+    //data string
+    String data="";
+    if(doorEvent.pinIdx==-1) {
+        for(int k =0; k<NPINS; k++) {
+          if(k!=0) data = data+"&";
+          data = data+ String("field"+String(k+1)+"=" + valueStr);
         }
-        else{
-          wserial.println("Problem updating channel. HTTP error code " + String(x));
-          DEBUG_V("Problem updating channel\n");
-        }*/        
-        wserial.print("Publish ");
-        wserial.print(topic);
-        wserial.print(" ");
-        wserial.println(valueStr);
+    } else {
+        data = String("field"+String(doorEvent.pinIdx+1)+"=" + valueStr);
+    }
+    /*int length = data.length();
+    char msgBuffer[length];
+    data.toCharArray(msgBuffer,length+1);
+    wserial.println(data);*/
+    //topic string
+    String topicString ="channels/" + String( myChannelNumber ) + "/publish/"+String(myWriteAPIKey);
+    /*length=topicString.length();
+    char topicBuffer[length];
+    topicString.toCharArray(topicBuffer,length+1);*/
+    result = mqttClient.publish(topicString.c_str(), 0, false, data.c_str()); 
+    DEBUG_V("publishing...\n");
+    wserial.println(data);
+    /*int x = ThingSpeak.writeField(myChannelNumber, 1, doorEvent.state, myWriteAPIKey);
+    if(x == 200){
+      wserial.println("Channel update successful.");
+      DEBUG_V("Channel update successful\n");
+    }
+    else{
+      wserial.println("Problem updating channel. HTTP error code " + String(x));
+      DEBUG_V("Problem updating channel\n");
+    }*/        
+    wserial.print("Publish ");
+    wserial.print(topic);
+    wserial.print(" ");
+    wserial.println(valueStr);
 }
 
 long mTimeSeconds =0;
