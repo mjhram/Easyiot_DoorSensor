@@ -357,7 +357,7 @@ void runAsyncClient(){
     }, NULL);
 
     //send the request
-    client->write("GET /trigger/door_closed/with/key/nATYSPRWzpXrZ341TzTSf HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n");
+    client->write("GET /trigger/door_closed/with/key/c3znCYclNej6D1b7JWlFBS HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n");
     DEBUG_V("IFTTT triggered\n");
     sendIfttt = false;//it is false once IFTTT is triggered.
   }, NULL);
