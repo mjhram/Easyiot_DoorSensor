@@ -37,8 +37,58 @@ struct EventStruct {
 };
 volatile EventStruct doorEvent;
 volatile bool newEvent, isNotifying, sendIfttt; 
+bool sendEspOn = true;
+
 #define NPINS 2
 const int sensorPins[NPINS]={D1, D2};
+
+static AsyncClient *aClient2 = NULL;
+
+void sendIfttt_espOn(){
+  wserial.println("sendIfttt_espOn()");
+  aClient2 = new AsyncClient();
+  if(!aClient2){
+    //could not allocate client
+    DEBUG_V("could not allocate client2");
+    return;
+  }
+  aClient2->onError([](void * arg, AsyncClient * client, err_t error){
+    wserial.println("Connect Error-ifttt espon");
+    aClient2 = NULL;
+    delete client;
+  }, NULL);
+
+  aClient2->onConnect([](void * arg, AsyncClient * client){
+    wserial.println("ifttt-espon-Connected");
+    aClient2->onError(NULL, NULL);
+
+    client->onDisconnect([](void * arg, AsyncClient * c){
+      wserial.println("ifttt-esponDisconnected");
+      aClient2 = NULL;
+      delete c;
+    }, NULL);
+
+    client->onData([](void * arg, AsyncClient * c, void * data, size_t len){
+      wserial.print("\r\nData: ");
+      wserial.println(String(len));
+      uint8_t * d = (uint8_t*)data;
+      for(size_t i=0; i<len;i++)
+        wserial.write(d[i]);
+    }, NULL);
+
+    //send the request
+    client->write("GET /trigger/esp_on/with/key/c3znCYclNej6D1b7JWlFBS HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n");
+    DEBUG_V("ifttt-espon triggered\n");
+    sendEspOn = false;//it is false once IFTTT is triggered.
+  }, NULL);
+  
+  if(!aClient2->connect("maker.ifttt.com", 80)){
+    wserial.println("sendIfttt_espOn-Connect Fail");
+    AsyncClient * client = aClient2;
+    aClient2 = NULL;
+    delete client;
+  }
+}
 
 void handleInterrupt(int pinIdx) {
   wserial.println("inteterrupt");
@@ -229,6 +279,9 @@ void setupTelnet() {
 
 void Repeate5m() {
   handleInterrupt(-1);
+  if(sendEspOn == true) {
+    sendIfttt_espOn();
+  }
 }
 
 void setup_wifi() {
