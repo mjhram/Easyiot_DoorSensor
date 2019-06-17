@@ -80,7 +80,7 @@ void send_force_event_html (AsyncWebServerRequest *server)
 }
 void send_force_open_html (AsyncWebServerRequest *server)
 {	
-	handleInterrupt(-1);
+	handleInterruptQ(0);
 	server->send ( 200);
 	Serial.println(__FUNCTION__); 
 }

@@ -71,7 +71,7 @@ void send_information_values_html (AsyncWebServerRequest *server)
 
   String ntpState = ntpSyncd?"Sync'd":"N/A";
   values += "x_sync|" + ntpState +  "|div\n";
-  String doorStateStr = doorEvent.state?"Opened":"Closed";
+  String doorStateStr = doorEvent.trigger?"Opened":"Closed";
   values += "x_door|" + doorStateStr +  "|div\n";
   values += "x_wifi|" + getConnectionState() +  "|div\n";
   String mqttState = mqttClient.connected()?"Connected":"Disconnected";

@@ -8,6 +8,8 @@
 #include <SimpleTimer.h>
 #include <EEPROM.h>
 #include <WiFiUdp.h>
+#include <cppQueue.h>
+
 #include "helpers.h"
 #include "wSerial.h"
 
@@ -199,18 +201,19 @@ void setup(){
   setupOTA();
 }
 
-
 void runOnce() {
     boolean result;
     String topic("");
     newEvent = false;
     isNotifying = false;
-
-    DEBUG_V("DoorValue:%d\n", doorEvent.state);
+    String tmp = "DoorValue:"+String(doorEvent.trigger);
+    wserial.println(tmp);
+      
+    //DEBUG_V("DoorValue:%d\n", doorEvent.trigger);
     if(sendIfttt) {
         runAsyncClient();   
     }
-    String valueStr = String(doorEvent.state);
+    String valueStr = String(doorEvent.trigger);
     /*//publish to easyiot
     topic  = "/"+String(config.moduleId)+ "/Sensor.Parameter1";
     result = mqttClient.publish(topic.c_str(), 0, true, valueStr.c_str(), true); 
@@ -220,10 +223,11 @@ void runOnce() {
     if(doorEvent.pinIdx==-1) {
         for(int k =0; k<NPINS; k++) {
           if(k!=0) data = data+"&";
-          data = data+ String("field"+String(k+1)+"=" + valueStr);
+          data = data+ "field "+String(k+1)+" =" + valueStr;
         }
     } else {
-        data = String("field"+String(doorEvent.pinIdx+1)+"=" + valueStr);
+        int tmp = doorEvent.pinIdx+1;
+        data = String("field."+String(tmp)+"=" + valueStr);
     }
     /*int length = data.length();
     char msgBuffer[length];
@@ -235,16 +239,16 @@ void runOnce() {
     char topicBuffer[length];
     topicString.toCharArray(topicBuffer,length+1);*/
     result = mqttClient.publish(topicString.c_str(), 0, false, data.c_str()); 
-    DEBUG_V("publishing...\n");
+    wserial.println("publishing...");
     wserial.println(data);
-    /*int x = ThingSpeak.writeField(myChannelNumber, 1, doorEvent.state, myWriteAPIKey);
+    /*int x = ThingSpeak.writeField(myChannelNumber, 1, doorEvent.trigger, myWriteAPIKey);
     if(x == 200){
       wserial.println("Channel update successful.");
-      DEBUG_V("Channel update successful\n");
+      //DEBUG_V("Channel update successful\n");
     }
     else{
       wserial.println("Problem updating channel. HTTP error code " + String(x));
-      DEBUG_V("Problem updating channel\n");
+      //DEBUG_V("Problem updating channel\n");
     }*/        
     wserial.print("Publish ");
     wserial.print(topic);
@@ -301,7 +305,9 @@ void loop(){
       wserial.print(".");
       //wserial.println("Refreshing...");
       //wserial.printf("FreeMem:%d %d:%d:%d %d.%d.%d \n",ESP.getFreeHeap() , DateTime.hour,DateTime.minute, DateTime.second, DateTime.year, DateTime.month, DateTime.day);
-      DEBUG_V("* Time: %u seconds (VERBOSE)\n", mTimeSeconds);
+      String tmp = "* Time: "+String(mTimeSeconds)+" seconds (VERBOSE)";
+      wserial.println(tmp);
+      //DEBUG_V("* Time: %u seconds (VERBOSE)\n", mTimeSeconds);
     }
 
   }
@@ -312,6 +318,22 @@ void loop(){
     isNotifying = true;
     timer.setTimeout(2000, runOnce);
     wserial.println("New Event...");
+  } 
+
+  if(WiFi.isConnected() && mqttClient.connected() && !fifoq.isEmpty() && !isNotifyingQ && !disarm) {
+    wserial.println("Queue Size: "+String(fifoq.getCount()));
+    EventStruct ev;
+    if(fifoq.peek(&ev)==false) return;//empty Q
+    /*
+    //if duplicate => dont push the event in queue
+    if(lastEvent[ev.pinIdx].time != -1 && ev.time-lastEvent[ev.pinIdx].time <= dupEvDuration) {
+      fifoq.pop(&ev);
+      wserial.println("duplicate event->dropped");
+      return; //duplicated event within dupEvDuration
+    } */
+    //process the event
+    isNotifyingQ = true;
+    runAsyncClientQ();
   } 
   Debug.handle();
   timer.run();
@@ -326,24 +348,24 @@ void runAsyncClient(){
   aClient = new AsyncClient();
   if(!aClient){
     //could not allocate client
-    DEBUG_V("could not allocate client");
+    wserial.println("could not allocate client");
     return;
   }
   aClient->onError([](void * arg, AsyncClient * client, err_t error){
     wserial.println("Connect Error");
-    DEBUG_V("Connect Error\n");
+    //DEBUG_V("Connect Error\n");
     aClient = NULL;
     delete client;
   }, NULL);
 
   aClient->onConnect([](void * arg, AsyncClient * client){
     wserial.println("Connected");
-    DEBUG_V("connected");
+    //DEBUG_V("connected");
     aClient->onError(NULL, NULL);
 
     client->onDisconnect([](void * arg, AsyncClient * c){
       wserial.println("Disconnected");
-      DEBUG_V("disconnected");
+      //DEBUG_V("disconnected");
       aClient = NULL;
       delete c;
     }, NULL);
@@ -358,16 +380,87 @@ void runAsyncClient(){
 
     //send the request
     client->write("GET /trigger/door_closed/with/key/c3znCYclNej6D1b7JWlFBS HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n");
-    DEBUG_V("IFTTT triggered\n");
+    wserial.println("IFTTT triggered\n");
     sendIfttt = false;//it is false once IFTTT is triggered.
   }, NULL);
   
   if(!aClient->connect("maker.ifttt.com", 80)){
     wserial.println("Connect Fail");
-    DEBUG_V("Connect Fail");
+    wserial.println("Connect Fail");
     AsyncClient * client = aClient;
     aClient = NULL;
     delete client;
   }
 }
 
+void runAsyncClientQ(){
+  //if(aClient)//client already exists
+    //return;
+  wserial.println("runAsyncClientQ()");
+  aClient = new AsyncClient();
+  if(!aClient){
+    //could not allocate client
+    wserial.println("could not allocate client");
+    isNotifyingQ = false;
+    return;
+  }
+  aClient->onError([](void * arg, AsyncClient * client, err_t error){
+    wserial.println("Connect Error");
+    //DEBUG_V("Connect Error\n");
+    aClient = NULL;
+    delete client;
+    isNotifyingQ = false;
+  }, NULL);
+
+  aClient->onConnect([](void * arg, AsyncClient * client){
+    wserial.println("Connected");
+    //DEBUG_V("connected");
+    aClient->onError(NULL, NULL);
+
+    client->onDisconnect([](void * arg, AsyncClient * c){
+      wserial.println("Disconnected");
+      //DEBUG_V("disconnected");
+      aClient = NULL;
+      delete c;
+      isNotifyingQ = false;
+    }, NULL);
+
+    client->onData([](void * arg, AsyncClient * c, void * data, size_t len){
+      wserial.print("\r\nData: ");
+      wserial.println(String(len));
+      uint8_t * d = (uint8_t*)data;
+      for(size_t i=0; i<len;i++)
+        wserial.write(d[i]);
+    }, NULL);
+    isNotifyingQ = false;
+    //send the request
+    EventStruct ev;
+    if(fifoq.pop(&ev)==false) return;//empty Q
+    
+    if(ev.type == DoorEvent) {
+      String dt = (String)DateTime.hour+":"+(String)+ DateTime.minute+":"+(String)DateTime.second
+           + "D" +(String)DateTime.year+ "-" +(String)DateTime.month+ "-" +(String)DateTime.day;
+      String tmp = "GET /trigger/door_closed/with/key/c3znCYclNej6D1b7JWlFBS?value1="+dt+" HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n";
+      client->write(tmp.c_str());
+      wserial.println("IFTTT triggered:");
+      wserial.println(tmp);
+    } else if(ev.type == PowerEvent) {
+      String dt = (String)DateTime.hour+":"+(String)+ DateTime.minute+":"+(String)DateTime.second
+           + "D" +(String)DateTime.year+ "-" +(String)DateTime.month+ "-" +(String)DateTime.day;
+      String tmp = "GET /trigger/esp_on/with/key/c3znCYclNej6D1b7JWlFBS?value1="+dt+" HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n";
+      client->write(tmp.c_str());
+      wserial.println("IFTTT triggered:");
+      wserial.println(tmp);
+    }    
+    //sendIfttt = false;//it is false once IFTTT is triggered.
+  }, NULL);
+  
+  if(!aClient->connect("maker.ifttt.com", 80)){
+    isNotifyingQ = false;
+    wserial.println("Connect Fail");
+    //DEBUG_V("Connect Fail");
+    AsyncClient * client = aClient;
+    aClient = NULL;
+    delete client;
+  }
+}

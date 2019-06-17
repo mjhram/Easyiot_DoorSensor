@@ -30,17 +30,6 @@ SimpleTimer timer;
 int state = 0;  //0: Normal working, LED=>OFF
                 //1: WiFi not connected (work as AP), Blink 1.2/1.2
                 //2: MQTT not connected. Blink .4/2
-struct EventStruct {
-  int pinIdx;
-  int state;
-  long time;
-};
-volatile EventStruct doorEvent;
-volatile bool newEvent, isNotifying, sendIfttt; 
-bool sendEspOn = true;
-
-#define NPINS 2
-const int sensorPins[NPINS]={D1, D2};
 
 static AsyncClient *aClient2 = NULL;
 
@@ -49,7 +38,7 @@ void sendIfttt_espOn(){
   aClient2 = new AsyncClient();
   if(!aClient2){
     //could not allocate client
-    DEBUG_V("could not allocate client2");
+    wserial.println("could not allocate client2");
     return;
   }
   aClient2->onError([](void * arg, AsyncClient * client, err_t error){
@@ -78,7 +67,7 @@ void sendIfttt_espOn(){
 
     //send the request
     client->write("GET /trigger/esp_on/with/key/c3znCYclNej6D1b7JWlFBS HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n");
-    DEBUG_V("ifttt-espon triggered\n");
+    wserial.println("ifttt-espon triggered\n");
     sendEspOn = false;//it is false once IFTTT is triggered.
   }, NULL);
   
@@ -90,39 +79,84 @@ void sendIfttt_espOn(){
   }
 }
 
-void handleInterrupt(int pinIdx) {
+#define dupEvDuration  2000
+void handleInterruptQ(int pinIdx) {
+  if(pinIdx <0 || pinIdx >= NPINS){
+    return;
+  }
+  EventStruct event;
+  wserial.println("\r\nqueue inteterrupt");
+  event.pinIdx = pinIdx;
+  event.type = eventType[pinIdx];
+  event.trigger = false;
+  bool a = digitalRead(sensorPins[pinIdx])==1;
+  if(sensorPinsInvert[pinIdx]==0){
+      doorEvent.trigger = a;
+  }else{
+      doorEvent.trigger = !a;
+  }
+  event.time  = millis();
+  String tmp = "time:"+String(event.time);  
+  wserial.println(tmp);
+  if(lastEvent[event.pinIdx].time != -1 && event.time-lastEvent[event.pinIdx].time <= dupEvDuration) {
+      //fifoq.pop(&ev);
+      wserial.println("duplicate event->neglect");
+      return; //duplicated event within dupEvDuration
+  } 
+  lastEvent[event.pinIdx] = event;
+  fifoq.push(&event);
+  wserial.print("Pins:");
+  
+  wserial.println(String(pinIdx));
+  wserial.print("button state:");
+  wserial.println(String(doorEvent.trigger));
+}
+
+void handleInterrupt(int8 pinIdx) {
   wserial.println("inteterrupt");
+  wserial.println(String(pinIdx));
   doorEvent.pinIdx = pinIdx;
-  doorEvent.state = 0;
+  doorEvent.type = eventType[pinIdx];
+  doorEvent.trigger = false;
+  doorEvent.time  = millis();
   wserial.print("Pins:");
   if(pinIdx == -1) {
     for(int kk=0; kk<NPINS;kk++){
-        int a = digitalRead(sensorPins[kk]);
-        doorEvent.state |= a;
+        if(doorEvent.type == PowerEvent) {
+          continue;
+        }
+        bool a = digitalRead(sensorPins[kk])==1;
+        if(sensorPinsInvert[kk]==0){
+           doorEvent.trigger |= a;
+        }else{
+            doorEvent.trigger |= !a;
+        }
         wserial.print(String(a)+"--");
     } 
   } else {
-        int a = digitalRead(sensorPins[pinIdx]);
-        doorEvent.state = a;
+        bool a = digitalRead(sensorPins[pinIdx])==1;
+        doorEvent.trigger = a;
         wserial.print(String(a)+"");
   }
   wserial.println("");
-  doorEvent.time  = millis();
   newEvent = true;
-  if(doorEvent.state==1){
+  if(doorEvent.trigger){
     sendIfttt = true;
   }
   wserial.print("button state:");
-  wserial.println(String(doorEvent.state));
+  wserial.println(String(doorEvent.trigger));
 }
 void handleInterrupt1() {
-  handleInterrupt(0);
+  handleInterruptQ(0);
 }
 void handleInterrupt2() {
-  handleInterrupt(1);
+  handleInterruptQ(1);
+}
+void handleInterrupt3() {
+  handleInterruptQ(2);
 }
 //const int buttonPin = D1;//D3; //D3 is flash Button
-void (* handleInt[NPINS])() ={handleInterrupt1, handleInterrupt2};
+void (* handleInt[NPINS])() ={handleInterrupt1};//, handleInterrupt2, handleInterrupt3};
 const int outPin = D4;  //D4 == 2 is LED
 
 void connectToMqtt() {
@@ -239,6 +273,24 @@ void repeat1s(){
   }
 }
 
+void processCmdRemoteDebug() {
+
+	String lastCmd = Debug.getLastCommand();
+
+	if (lastCmd == "clrq") {
+
+		// Clear Queue
+
+		debugA("* Queue Cleared");
+    fifoq.clean();
+	} else if (lastCmd == "getq") {
+
+		// Benchmark 2 - Print/println
+
+		debugA("* Queue entries#: %d", fifoq.getCount());
+	}
+}
+
 void initSetup() {
   newEvent = false;
   isNotifying = false;
@@ -247,14 +299,19 @@ void initSetup() {
   pinMode(outPin, OUTPUT); 
   pinMode(D0, OUTPUT); digitalWrite(D0, HIGH); //will use it for reseting
   for (int kk=0; kk<NPINS;kk++) {
-    pinMode(sensorPins[kk], INPUT_PULLUP);
+    if(sensorPinsInvert[kk]==0) {
+      pinMode(sensorPins[kk], INPUT_PULLUP);
+    }else{
+      pinMode(sensorPins[kk], INPUT);
+    }
     attachInterrupt(digitalPinToInterrupt(sensorPins[kk]), handleInt[kk], CHANGE);
   }
   //attachInterrupt(digitalPinToInterrupt(buttonPin), handleInterrupt, CHANGE);
   digitalWrite(outPin, HIGH);
 
   //int switchState = digitalRead(buttonPin);
-  handleInterrupt(-1); //initially force send event 
+  //handleInterrupt(-1); //initially force send event 
+  handleInterruptQ(2); //force send power event
 
   mqttClient.onConnect(onMqttConnect);
   mqttClient.onDisconnect(onMqttDisconnect);
@@ -275,13 +332,21 @@ void setupTelnet() {
     MDNS.addService("telnet", "tcp", 23);
     Debug.begin(HOST_NAME); // Initiaze the telnet server
     Debug.setResetCmdEnabled(true);
+    Debug.showColors(true);
+    // Project commands
+
+	String helpCmd = "clrq - Clear Queue\r\n";
+	helpCmd.concat("getq - Get # Queue entries count");
+
+	Debug.setHelpProjectsCmds(helpCmd);
+	Debug.setCallBackProjectCmds(&processCmdRemoteDebug);
 }
 
 void Repeate5m() {
   handleInterrupt(-1);
-  if(sendEspOn == true) {
+  /*if(sendEspOn == true) {
     sendIfttt_espOn();
-  }
+  }*/
 }
 
 void setup_wifi() {
@@ -343,4 +408,5 @@ void setupOTA() {
   });
   ArduinoOTA.begin();
 }
+
 #endif

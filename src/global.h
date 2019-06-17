@@ -46,7 +46,79 @@ struct strConfig {
   boolean state;     // state
 }   config;
 
+/////////////////////
+enum EventType {Dummy, DoorEvent, PowerEvent};
 
+class EventStruct {
+  public:
+  EventType type;//door, power
+  byte state;//door open/closed, power down/up => not used for now
+  int8 pinIdx;
+  bool trigger;//0 don't trigger action, 1 trigger
+  long time;
+  EventStruct() {
+    
+  }
+  EventStruct(EventType t, byte st, byte id, bool tr, long tm) {
+    type = t;
+    state = st;
+    pinIdx = id;
+    trigger = tr;
+    time = tm;
+  }
+
+  EventStruct(const EventStruct &ev) {
+    type = ev.type;
+    state = ev.state;
+    pinIdx = ev.pinIdx;
+    trigger = ev.trigger;
+    time = ev.time;
+  }
+
+  void operator=(const EventStruct &ev) {
+    type = ev.type;
+    state = ev.state;
+    pinIdx = ev.pinIdx;
+    trigger = ev.trigger;
+    time = ev.time;
+  }
+  /*
+  //use time & pinIdx to compare 2 events directly without operator:
+  // ev.time - lastEvent[ev.pinIdx] >= xxxx
+  bool operator==(const EventStruct& ev) {
+    //if it is not the same pin => different event
+    if(pinIdx != ev.pinIdx) {
+      return false;
+    } else {
+      return true;
+    }    
+  }
+  bool operator!=(const EventStruct& ev) {
+    //if it is not the same pin => different event
+    if(pinIdx != ev.pinIdx) {
+      return true;
+    } else {
+      return false;
+    }    
+  }*/
+};
+
+const EventStruct dummyEvent = {Dummy, -1, -1, false, -1};
+//Queue<EventStruct> fifoq = new Queue
+Queue	fifoq(sizeof(EventStruct), 100, FIFO, true);
+volatile EventStruct doorEvent;
+volatile bool newEvent, isNotifying, sendIfttt; 
+bool isNotifyingQ = false;
+bool sendEspOn = true;
+
+
+#define NPINS 1
+const int sensorPins[NPINS]={D1};//, D5};//, D2, D4};
+const byte sensorPinsInvert[NPINS]={0};//, 1};//, 0, 1};
+const EventType eventType[NPINS]={DoorEvent};//, PowerEvent};//, DoorEvent, PowerEvent};
+EventStruct lastEvent[NPINS]={dummyEvent};//, dummyEvent};//, dummyEvent, dummyEvent};
+
+/////////////////////
 /*
 **
 ** CONFIGURATION HANDLING
@@ -216,6 +288,9 @@ boolean ReadConfig()
 const int NTP_PACKET_SIZE = 48; 
 byte packetBuffer[ NTP_PACKET_SIZE]; 
 void NTPRefresh() {
+	String tmp = String(fifoq.getCount());
+    wserial.println(tmp);
+
 	if (WiFi.status() == WL_CONNECTED)
 	{
 		IPAddress timeServerIP; 
