@@ -1,6 +1,7 @@
 #ifndef PAGE_FORCEEVENT_H
 #define PAGE_FORCEEVENT_H
 
+#include <SD.h>
 
 //
 //   The HTML PAGE
@@ -93,4 +94,99 @@ void send_force_mqttconnect_html (AsyncWebServerRequest *server)
 	Serial.println(__FUNCTION__); 
 }
 
+void sdCheck() {
+	Sd2Card card;
+	SdVolume volume;
+	SdFile root;
+	int chipSelect = D8;
+
+	
+  wserial.print("\nInitializing SD card...");
+
+  // we'll use the initialization code from the utility libraries
+  // since we're just testing if the card is working!
+  if (!card.init(SPI_HALF_SPEED, chipSelect)) {
+    wserial.println("initialization failed. Things to check:");
+    wserial.println("* is a card inserted?");
+    wserial.println("* is your wiring correct?");
+    wserial.println("* did you change the chipSelect pin to match your shield or module?");
+    while (1);
+  } else {
+    wserial.println("Wiring is correct and a card is present.");
+  }
+
+  // print the type of card
+  wserial.println("");
+  wserial.print("Card type:         ");
+  switch (card.type()) {
+    case SD_CARD_TYPE_SD1:
+      wserial.println("SD1");
+      break;
+    case SD_CARD_TYPE_SD2:
+      wserial.println("SD2");
+      break;
+    case SD_CARD_TYPE_SDHC:
+      wserial.println("SDHC");
+      break;
+    default:
+      wserial.println("Unknown");
+  }
+
+  // Now we will try to open the 'volume'/'partition' - it should be FAT16 or FAT32
+  if (!volume.init(card)) {
+    wserial.println("Could not find FAT16/FAT32 partition.\nMake sure you've formatted the card");
+    while (1);
+  }
+
+  wserial.print("Clusters:          ");
+  wserial.println(String(volume.clusterCount()));
+  wserial.print("Blocks x Cluster:  ");
+  wserial.println(String(volume.blocksPerCluster()));
+
+  wserial.print("Total Blocks:      ");
+  wserial.println(String(volume.blocksPerCluster() * volume.clusterCount()));
+  wserial.println("");
+
+  // print the type and size of the first FAT-type volume
+  uint32_t volumesize;
+  wserial.print("Volume type is:    FAT");
+  wserial.println(String(volume.fatType()));
+
+  volumesize = volume.blocksPerCluster();    // clusters are collections of blocks
+  volumesize *= volume.clusterCount();       // we'll have a lot of clusters
+  volumesize /= 2;                           // SD card blocks are always 512 bytes (2 blocks are 1KB)
+  wserial.print("Volume size (Kb):  ");
+  wserial.println(String(volumesize));
+  wserial.print("Volume size (Mb):  ");
+  volumesize /= 1024;
+  wserial.println(String(volumesize));
+  wserial.print("Volume size (Gb):  ");
+  wserial.println(String((float)volumesize / 1024.0));
+
+  wserial.println("\nFiles found on the card (name, date and size in bytes): ");
+  root.openRoot(volume);
+
+  // list all files in the card with date and size
+  root.ls(LS_R | LS_DATE | LS_SIZE);
+}
+
+void sendLogFile(AsyncWebServerRequest *request){
+  	AsyncWebServerResponse *response = request->beginChunkedResponse("text/plain", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
+		File logFile = SD.open("log.txt", FILE_READ);
+		if (!logFile)
+        {
+            wserial.println("can't open SD file for read.");
+			//File root = SD.open("/");
+  			//printDirectory(root, 0);
+			  sdCheck();
+			return 0;
+        }
+		int next = logFile.read(buffer, maxLen);
+		if(next == -1) {
+			return 0;
+		}
+		return next;
+	});
+	request->send(response);
+}
 #endif

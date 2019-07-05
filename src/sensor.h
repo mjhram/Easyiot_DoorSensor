@@ -19,6 +19,9 @@ const char* http_password = "admin";
 #define MQTT_PASSWORD "Y3OP4BB8DOEOA33G"
 #define MQTT_ADDRESS "mqtt.thingspeak.com"
 
+unsigned long myChannelNumber = 772321;
+const char * myWriteAPIKey = "1L8YUJBDUEJ8OFMR";
+
 AsyncMqttClient mqttClient;
 Ticker mqttReconnectTimer;
 Ticker wifiReconnectTimer;
@@ -68,7 +71,7 @@ void sendIfttt_espOn(){
     //send the request
     client->write("GET /trigger/esp_on/with/key/c3znCYclNej6D1b7JWlFBS HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n");
     wserial.println("ifttt-espon triggered\n");
-    sendEspOn = false;//it is false once IFTTT is triggered.
+    //sendEspOn = false;//it is false once IFTTT is triggered.
   }, NULL);
   
   if(!aClient2->connect("maker.ifttt.com", 80)){
@@ -79,8 +82,46 @@ void sendIfttt_espOn(){
   }
 }
 
+void publish2thingspeak(){
+  EventStruct event;
+  if(publishq.peek(&event)==false) return;
+  wserial.println("publish2thingspeak...");
+  wserial.println(event.toString());
+  bool a = event.trigger;
+  if(sensorPinsInvert[event.pinIdx]==1) {
+      //invert
+      a = !a;
+  }
+  //bool a = (sensorPinsInvert[event.pinIdx]==1)?~event.trigger:event.trigger;//mistake in use ~(bitwise negation) while ! should be used
+  String valueStr = a?"1":"0";
+  String data="";
+  int tmp = event.pinIdx+1;
+  data = String("field"+String(tmp)+"=" + valueStr);
+  String topicString ="channels/" + String( myChannelNumber ) + "/publish/"+String(myWriteAPIKey);
+  int result = mqttClient.publish(topicString.c_str(), 0, false, data.c_str()); 
+  if(result == 1) {
+    publishq.pop(&event);
+  } else {
+    wserial.println("event not published => kept in Queue.");
+  }
+  //wserial.print("publishing...");
+  wserial.print("Topic:");
+  wserial.print(topicString);
+  wserial.print(" -Data:");
+  wserial.print(data);  
+  wserial.print(" -Returned:");
+  wserial.println(String(result));
+}
+
 #define dupEvDuration  2000
-void handleInterruptQ(int pinIdx) {
+void handleInterruptQ(int pinIdx, bool doPublish=false) {
+  if(pinIdx == -1) {
+    wserial.println("check all pins (handleinterrupt(-1)...");
+    for(int kk=0; kk<NPINS;kk++){
+        handleInterruptQ(kk, true);
+    }
+    return;
+  }
   if(pinIdx <0 || pinIdx >= NPINS){
     return;
   }
@@ -91,13 +132,22 @@ void handleInterruptQ(int pinIdx) {
   event.trigger = false;
   bool a = digitalRead(sensorPins[pinIdx])==1;
   if(sensorPinsInvert[pinIdx]==0){
-      doorEvent.trigger = a;
+      event.trigger = a;
   }else{
-      doorEvent.trigger = !a;
+      event.trigger = !a;
   }
   event.time  = millis();
   String tmp = "time:"+String(event.time);  
   wserial.println(tmp);
+  //if(doPublish) 
+  {
+    //publish2thingspeak(event);
+    publishq.push(&event);
+  }
+  if(event.trigger == false) {
+    wserial.println("false interrupt->neglect");
+    return; //false trigger!
+  }
   if(lastEvent[event.pinIdx].time != -1 && event.time-lastEvent[event.pinIdx].time <= dupEvDuration) {
       //fifoq.pop(&ev);
       wserial.println("duplicate event->neglect");
@@ -109,10 +159,10 @@ void handleInterruptQ(int pinIdx) {
   
   wserial.println(String(pinIdx));
   wserial.print("button state:");
-  wserial.println(String(doorEvent.trigger));
+  wserial.println(String(event.trigger));
 }
 
-void handleInterrupt(int8 pinIdx) {
+/*void handleInterrupt(int8 pinIdx) {
   wserial.println("inteterrupt");
   wserial.println(String(pinIdx));
   doorEvent.pinIdx = pinIdx;
@@ -145,7 +195,8 @@ void handleInterrupt(int8 pinIdx) {
   }
   wserial.print("button state:");
   wserial.println(String(doorEvent.trigger));
-}
+}*/
+
 void handleInterrupt1() {
   handleInterruptQ(0);
 }
@@ -156,15 +207,19 @@ void handleInterrupt3() {
   handleInterruptQ(2);
 }
 //const int buttonPin = D1;//D3; //D3 is flash Button
-void (* handleInt[NPINS])() ={handleInterrupt1};//, handleInterrupt2, handleInterrupt3};
+void (* handleInt[NPINS])() ={handleInterrupt1, handleInterrupt2};//, handleInterrupt3};
 const int outPin = D4;  //D4 == 2 is LED
 
+bool mqttIsConnecting = false;
 void connectToMqtt() {
-  wserial.println("Connecting to MQTT...");
+  mqttIsConnecting = false;
+  
   if(!mqttClient.connected()) {
+      wserial.println("Connecting to MQTT...");
       mqttClient.connect();
       state = 1;
   } else {
+    wserial.println("MQTT already connected.");
     state = 0;  
   }
 }
@@ -241,8 +296,9 @@ void onMqttPublish(uint16_t packetId) {
   wserial.println(String(packetId));
 }
 
-
+bool wifiIsConnecting = false;
 void reconnectToWifi() {
+  wifiIsConnecting = false;
   if(WiFi.isConnected() && WiFi.localIP().toString() != "0.0.0.0") {
     return;
   }
@@ -288,13 +344,18 @@ void processCmdRemoteDebug() {
 		// Benchmark 2 - Print/println
 
 		debugA("* Queue entries#: %d", fifoq.getCount());
+	} else if (lastCmd == "getpq") {
+
+		// Benchmark 2 - Print/println
+
+		debugA("* Publish Queue entries#: %d", publishq.getCount());
 	}
 }
 
 void initSetup() {
-  newEvent = false;
+  /*newEvent = false;
   isNotifying = false;
-  sendIfttt = false;
+  sendIfttt = false;*/
   
   pinMode(outPin, OUTPUT); 
   pinMode(D0, OUTPUT); digitalWrite(D0, HIGH); //will use it for reseting
@@ -304,7 +365,7 @@ void initSetup() {
     }else{
       pinMode(sensorPins[kk], INPUT);
     }
-    attachInterrupt(digitalPinToInterrupt(sensorPins[kk]), handleInt[kk], CHANGE);
+    attachInterrupt(digitalPinToInterrupt(sensorPins[kk]), handleInt[kk], sensorPinMode[kk]);
   }
   //attachInterrupt(digitalPinToInterrupt(buttonPin), handleInterrupt, CHANGE);
   digitalWrite(outPin, HIGH);
@@ -336,14 +397,16 @@ void setupTelnet() {
     // Project commands
 
 	String helpCmd = "clrq - Clear Queue\r\n";
-	helpCmd.concat("getq - Get # Queue entries count");
+	helpCmd.concat("getq - Get # Queue entries count\n");
+  helpCmd.concat("getpq - Get # publish queue entries");
 
 	Debug.setHelpProjectsCmds(helpCmd);
 	Debug.setCallBackProjectCmds(&processCmdRemoteDebug);
 }
 
 void Repeate5m() {
-  handleInterrupt(-1);
+  handleInterruptQ(-1);
+  wserial.flush();
   /*if(sendEspOn == true) {
     sendIfttt_espOn();
   }*/
@@ -375,6 +438,7 @@ void setup_wifi() {
   
   wserial.println(String(WiFi.localIP()));
   timer.setInterval(300000, Repeate5m);
+  timer.setInterval(30000, publish2thingspeak);
 }
 
 void setupOTA() {

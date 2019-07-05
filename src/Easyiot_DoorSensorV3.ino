@@ -1,4 +1,5 @@
-#include <ESP8266WiFi.h>
+/*#include <ESP8266WiFi.h>
+#define FS_NO_GLOBALS
 #include <FS.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
@@ -9,13 +10,12 @@
 #include <EEPROM.h>
 #include <WiFiUdp.h>
 #include <cppQueue.h>
-
-#include "helpers.h"
-#include "wSerial.h"
+//#include <SD.h>
+*/
+//#include "wSerial.h"
 
 #define RefreshTimerIsOn  false
-RemoteDebug Debug;
-wSerial wserial(Debug);
+
 #include "global.h"
 //Telent
 //#include "RemoteDebug.h"
@@ -42,8 +42,6 @@ wSerial wserial(Debug);
 #include "example.h"
 
 WiFiClient client;
-unsigned long myChannelNumber = 772321;
-const char * myWriteAPIKey = "1L8YUJBDUEJ8OFMR";
 
 void setup(){
   EEPROM.begin(512);
@@ -123,12 +121,16 @@ void setup(){
       send_force_event_html(server);  
     }  );
     server.on ( "/force/opendoor", [](AsyncWebServerRequest *request) { 
-    wserial.println("/force/opendoor"); 
-    send_force_open_html(request);
+      wserial.println("/force/opendoor"); 
+      send_force_open_html(request);
     }  );
     server.on ( "/force/mqttconnect", [](AsyncWebServerRequest *request) { 
-    wserial.println("/force/mqttconnect"); 
-    send_force_mqttconnect_html(request);
+      wserial.println("/force/mqttconnect"); 
+      send_force_mqttconnect_html(request);
+    }  );
+    server.on ( "/log", [](AsyncWebServerRequest *request) { 
+      wserial.println("/log"); 
+      sendLogFile(request);
     }  );
     
   server.on ( "/config.html", [](AsyncWebServerRequest *request) { 
@@ -201,7 +203,12 @@ void setup(){
   setupOTA();
 }
 
-void runOnce() {
+void notifyingTimeout() {
+
+  isNotifyingQ=false;
+}
+
+/*void runOnce() {
     boolean result;
     String topic("");
     newEvent = false;
@@ -214,10 +221,7 @@ void runOnce() {
         runAsyncClient();   
     }
     String valueStr = String(doorEvent.trigger);
-    /*//publish to easyiot
-    topic  = "/"+String(config.moduleId)+ "/Sensor.Parameter1";
-    result = mqttClient.publish(topic.c_str(), 0, true, valueStr.c_str(), true); 
-    */
+    
     //data string
     String data="";
     if(doorEvent.pinIdx==-1) {
@@ -227,36 +231,23 @@ void runOnce() {
         }
     } else {
         int tmp = doorEvent.pinIdx+1;
-        data = String("field."+String(tmp)+"=" + valueStr);
+        data = String("field"+String(tmp)+"=" + valueStr);
     }
-    /*int length = data.length();
-    char msgBuffer[length];
-    data.toCharArray(msgBuffer,length+1);
-    wserial.println(data);*/
     //topic string
     String topicString ="channels/" + String( myChannelNumber ) + "/publish/"+String(myWriteAPIKey);
-    /*length=topicString.length();
-    char topicBuffer[length];
-    topicString.toCharArray(topicBuffer,length+1);*/
+    
     result = mqttClient.publish(topicString.c_str(), 0, false, data.c_str()); 
     wserial.println("publishing...");
     wserial.println(data);
-    /*int x = ThingSpeak.writeField(myChannelNumber, 1, doorEvent.trigger, myWriteAPIKey);
-    if(x == 200){
-      wserial.println("Channel update successful.");
-      //DEBUG_V("Channel update successful\n");
-    }
-    else{
-      wserial.println("Problem updating channel. HTTP error code " + String(x));
-      //DEBUG_V("Problem updating channel\n");
-    }*/        
+        
     wserial.print("Publish ");
     wserial.print(topic);
     wserial.print(" ");
     wserial.println(valueStr);
-}
+}*/
 
 long mTimeSeconds =0;
+Ticker notifyTimer;
 void loop(){
   ArduinoOTA.handle();
   if (config.Update_Time_Via_NTP_Every  > 0 )
@@ -312,14 +303,20 @@ void loop(){
 
   }
 
-  if(!WiFi.isConnected()) {
+  if(!WiFi.isConnected() && !wifiIsConnecting) {
+    wserial.println("reconnecting wifi in 30s...");
+    wifiIsConnecting = true;
     wifiReconnectTimer.once(30, reconnectToWifi);
-  }else if(WiFi.isConnected() && mqttClient.connected() && newEvent && !isNotifying && !disarm) {
+  }else /*if(WiFi.isConnected() && mqttClient.connected() && newEvent && !isNotifying && !disarm) {
     isNotifying = true;
     timer.setTimeout(2000, runOnce);
     wserial.println("New Event...");
-  } 
-
+  } */
+  if(WiFi.isConnected() && !mqttClient.connected() && !mqttIsConnecting){
+    wserial.println("reconnecting mqtt in 30s...");
+    mqttIsConnecting = true;
+    mqttReconnectTimer.once(30, connectToMqtt);
+  }
   if(WiFi.isConnected() && mqttClient.connected() && !fifoq.isEmpty() && !isNotifyingQ && !disarm) {
     wserial.println("Queue Size: "+String(fifoq.getCount()));
     EventStruct ev;
@@ -333,6 +330,7 @@ void loop(){
     } */
     //process the event
     isNotifyingQ = true;
+    notifyTimer.once(300, notifyingTimeout);
     runAsyncClientQ();
   } 
   Debug.handle();
@@ -341,7 +339,7 @@ void loop(){
 
 static AsyncClient * aClient = NULL;
 
-void runAsyncClient(){
+/*void runAsyncClient(){
   //if(aClient)//client already exists
     //return;
   wserial.println("runAsyncClient()");
@@ -391,7 +389,8 @@ void runAsyncClient(){
     aClient = NULL;
     delete client;
   }
-}
+}*/
+
 
 void runAsyncClientQ(){
   //if(aClient)//client already exists
@@ -451,8 +450,13 @@ void runAsyncClientQ(){
       client->write(tmp.c_str());
       wserial.println("IFTTT triggered:");
       wserial.println(tmp);
-    }    
+    }
+
+    
     //sendIfttt = false;//it is false once IFTTT is triggered.
+    //publish value to thingspeak
+    //publish2thingspeak(ev);
+    //publishq.push(&ev);
   }, NULL);
   
   if(!aClient->connect("maker.ifttt.com", 80)){

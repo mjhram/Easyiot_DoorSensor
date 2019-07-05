@@ -1,23 +1,43 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-const char* ssid = "MJH_MIFI";
-const char* password =  "2013Dgroup2";
+#include <ESP8266WiFi.h>
+#define FS_NO_GLOBALS
+#include <FS.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <SPIFFSEditor.h>
+#include <Ticker.h>
+#include <AsyncMqttClient.h>
+#include <SimpleTimer.h>
+#include <EEPROM.h>
+#include <WiFiUdp.h>
+#include <cppQueue.h>
 
-AsyncWebServer server(80);									// The Webserver
-//ESP8266WebServer server(80);
-boolean firstStart = true;										// On firststart = true, NTP will try to get a valid time
-int AdminTimeOutCounter = 0;									// Counter for Disabling the AdminMode
-strDateTime DateTime;											// Global DateTime structure, will be refreshed every Second
-WiFiUDP UDPNTPClient;											// NTP Client
-unsigned long UnixTimestamp = 0;								// GLOBALTIME  ( Will be set by NTP)
-boolean Refresh = false; // For Main Loop, to refresh things like GPIO / WS2812
-int cNTP_Update = 0;											// Counter for Updating the time via NTP
-Ticker tkSecond;												// Second - Timer for Updating Datetime Structure
-boolean AdminEnabled = false;		// Enable Admin Mode for a given Time
-byte Minute_Old = 100;				// Helpvariable for checking, when a new Minute comes up (for Auto Turn On / Off)
-bool ntpSyncd = false;
-bool disarm = false;
+#include <Arduino.h>
+#include "strDateTime.h"
+
+#include "wSerial.h"
+
+extern RemoteDebug Debug;
+extern wSerial wserial;
+
+extern const char* ssid;
+extern const char* password;
+
+extern AsyncWebServer server;									// The Webserver
+extern boolean firstStart;										// On firststart = true, NTP will try to get a valid time
+extern int AdminTimeOutCounter;									// Counter for Disabling the AdminMode
+extern strDateTime2 DateTime;											// Global DateTime structure, will be refreshed every Second
+extern WiFiUDP UDPNTPClient;											// NTP Client
+extern unsigned long UnixTimestamp;
+extern boolean Refresh; // For Main Loop, to refresh things like GPIO / WS2812
+extern int cNTP_Update;											// Counter for Updating the time via NTP
+extern Ticker tkSecond;												// Second - Timer for Updating Datetime Structure
+extern boolean AdminEnabled;		// Enable Admin Mode for a given Time
+extern byte Minute_Old;				// Helpvariable for checking, when a new Minute comes up (for Auto Turn On / Off)
+extern bool ntpSyncd;
+extern bool disarm;
 
 
 struct strConfig {
@@ -44,8 +64,8 @@ struct strConfig {
 
   uint moduleId;  // module id
   boolean state;     // state
-}   config;
-
+};
+extern strConfig config;
 /////////////////////
 enum EventType {Dummy, DoorEvent, PowerEvent};
 
@@ -56,6 +76,24 @@ class EventStruct {
   int8 pinIdx;
   bool trigger;//0 don't trigger action, 1 trigger
   long time;
+	String toString() {
+		String tmp;
+		switch(type) {
+			case Dummy:
+				tmp+="Dummy";
+				break;
+			case DoorEvent:
+				tmp+="Door";
+				break;
+			case PowerEvent:
+				tmp+="Power";
+				break;
+		}
+		tmp+=" -Pin:"+String(pinIdx);
+		tmp+=" -trigger:";
+		tmp+= trigger?"true":"false";
+		return tmp;
+	}
   EventStruct() {
     
   }
@@ -105,19 +143,20 @@ class EventStruct {
 
 const EventStruct dummyEvent = {Dummy, -1, -1, false, -1};
 //Queue<EventStruct> fifoq = new Queue
-Queue	fifoq(sizeof(EventStruct), 100, FIFO, true);
-volatile EventStruct doorEvent;
-volatile bool newEvent, isNotifying, sendIfttt; 
-bool isNotifyingQ = false;
-bool sendEspOn = true;
+extern Queue	fifoq;
+extern Queue publishq;
+//volatile EventStruct doorEvent;
+//volatile bool newEvent, isNotifying, sendIfttt; 
+extern bool isNotifyingQ;
+//bool sendEspOn = true;
 
 
-#define NPINS 1
-const int sensorPins[NPINS]={D1};//, D5};//, D2, D4};
-const byte sensorPinsInvert[NPINS]={0};//, 1};//, 0, 1};
-const EventType eventType[NPINS]={DoorEvent};//, PowerEvent};//, DoorEvent, PowerEvent};
-EventStruct lastEvent[NPINS]={dummyEvent};//, dummyEvent};//, dummyEvent, dummyEvent};
-
+#define NPINS 2
+const int sensorPins[NPINS]={D1, D2};//, D2, D5};
+const byte sensorPinsInvert[NPINS]={0, 1};//, 0, 1};
+const EventType eventType[NPINS]={DoorEvent, PowerEvent};//, DoorEvent, PowerEvent};
+extern EventStruct lastEvent[];;//, dummyEvent, dummyEvent};
+const int sensorPinMode[NPINS] = {RISING, FALLING};
 /////////////////////
 /*
 **
@@ -125,238 +164,34 @@ EventStruct lastEvent[NPINS]={dummyEvent};//, dummyEvent};//, dummyEvent, dummyE
 **
 */
 //SimpleTimer timer;
-bool bReconnect = false;
-
-void reconnectCheck() {
-  wserial.print(".");
-  if(WiFi.status() == WL_CONNECTED) {
-    bReconnect = false;
-  }
-}
-//has an issue when re-establishing a connection
-void ConfigureWifi()
-{
-	wserial.println("Configuring Wifi");
-   wserial.println(config.ssid.c_str());
-   wserial.print("=>");
-   wserial.print(config.password.c_str());
-   //disconnect WiFi
-   WiFi.disconnect(true);
-   wserial.println("Dis-connnecting");
-   while(WiFi.status() == WL_CONNECTED){
-      delay(1000);
-      wserial.print(".");
-   }
-   wserial.println("connnecting");
-   WiFi.persistent(false);
-WiFi.mode(WIFI_OFF);
-WiFi.mode(WIFI_STA);
-WiFi.setOutputPower(0);
-WiFi.begin(ssid, password);
-  
-	/*WiFi.begin (config.ssid.c_str(), config.password.c_str());
-	if (!config.dhcp)
-	{
-		WiFi.config(IPAddress(config.IP[0],config.IP[1],config.IP[2],config.IP[3] ),  IPAddress(config.Gateway[0],config.Gateway[1],config.Gateway[2],config.Gateway[3] ) , IPAddress(config.Netmask[0],config.Netmask[1],config.Netmask[2],config.Netmask[3] ));
-	}*/
- //int i = 0;
- //int reconnectCheckId = timer.setInterval(1000, reconnectCheck);
- //bReconnect = true;
-  while (/*bReconnect == true*/ WiFi.status() != WL_CONNECTED /*&& i++ < (AP_CONNECT_TIME*2)*/) {
-    delay(1000);
-    //#ifdef DEBUG
-      wserial.print(".");
-    //#endif
-  }
-  //timer.disable(reconnectCheckId);*/
- wserial.println(String(WiFi.localIP()));
-}
-#define VERSION_1 'B'
-void WriteConfig()
-{
-
-	wserial.println("Writing Config");
-	EEPROM.write(0,VERSION_1);
-	EEPROM.write(1,'F');
-	EEPROM.write(2,'G');
-
-	EEPROM.write(16,config.dhcp);
-	EEPROM.write(17,config.daylight);
-	
-	EEPROMWritelong(18,config.Update_Time_Via_NTP_Every); // 4 Byte
-
-	EEPROMWritelong(22,config.timezone);  // 4 Byte
-
-
-	EEPROM.write(26,config.LED_R);
-	EEPROM.write(27,config.LED_G);
-	EEPROM.write(28,config.LED_B);
-
-	EEPROM.write(32,config.IP[0]);
-	EEPROM.write(33,config.IP[1]);
-	EEPROM.write(34,config.IP[2]);
-	EEPROM.write(35,config.IP[3]);
-
-	EEPROM.write(36,config.Netmask[0]);
-	EEPROM.write(37,config.Netmask[1]);
-	EEPROM.write(38,config.Netmask[2]);
-	EEPROM.write(39,config.Netmask[3]);
-
-	EEPROM.write(40,config.Gateway[0]);
-	EEPROM.write(41,config.Gateway[1]);
-	EEPROM.write(42,config.Gateway[2]);
-	EEPROM.write(43,config.Gateway[3]);
-
-
-	WriteStringToEEPROM(64,config.ssid);
-	WriteStringToEEPROM(96,config.password);
-	WriteStringToEEPROM(128,config.ntpServerName);
-
-	EEPROM.write(300,config.AutoTurnOn);
-	EEPROM.write(301,config.AutoTurnOff);
-	EEPROM.write(302,config.TurnOnHour);
-	EEPROM.write(303,config.TurnOnMinute);
-	EEPROM.write(304,config.TurnOffHour);
-	EEPROM.write(305,config.TurnOffMinute);
-	WriteStringToEEPROM(306,config.DeviceName);
-	EEPROM.write(338,config.moduleId);
-  	EEPROM.write(339,config.state);
-
-	EEPROM.commit();
-}
-boolean ReadConfig()
-{
-
-	wserial.println("Reading Configuration");
-	if (EEPROM.read(0) == VERSION_1 && EEPROM.read(1) == 'F'  && EEPROM.read(2) == 'G' )
-	{
-		wserial.println("Configurarion Found!");
-		config.dhcp = 	EEPROM.read(16);
-
-		config.daylight = EEPROM.read(17);
-
-		config.Update_Time_Via_NTP_Every = EEPROMReadlong(18); // 4 Byte
-
-		config.timezone = EEPROMReadlong(22); // 4 Byte
-
-		config.LED_R = EEPROM.read(26);
-		config.LED_G = EEPROM.read(27);
-		config.LED_B = EEPROM.read(28);
-
-		config.IP[0] = EEPROM.read(32);
-		config.IP[1] = EEPROM.read(33);
-		config.IP[2] = EEPROM.read(34);
-		config.IP[3] = EEPROM.read(35);
-		config.Netmask[0] = EEPROM.read(36);
-		config.Netmask[1] = EEPROM.read(37);
-		config.Netmask[2] = EEPROM.read(38);
-		config.Netmask[3] = EEPROM.read(39);
-		config.Gateway[0] = EEPROM.read(40);
-		config.Gateway[1] = EEPROM.read(41);
-		config.Gateway[2] = EEPROM.read(42);
-		config.Gateway[3] = EEPROM.read(43);
-		config.ssid = ReadStringFromEEPROM(64);
-		config.password = ReadStringFromEEPROM(96);
-		config.ntpServerName = ReadStringFromEEPROM(128);
-		
-		
-		config.AutoTurnOn = EEPROM.read(300);
-		config.AutoTurnOff = EEPROM.read(301);
-		config.TurnOnHour = EEPROM.read(302);
-		config.TurnOnMinute = EEPROM.read(303);
-		config.TurnOffHour = EEPROM.read(304);
-		config.TurnOffMinute = EEPROM.read(305);
-		config.DeviceName= ReadStringFromEEPROM(306);
-		config.moduleId = EEPROM.read(338);
-		config.state =  EEPROM.read(339);
-		return true;
-		
-	}
-	else
-	{
-		wserial.println("Configurarion NOT FOUND!!!!");
-		return false;
-	}
-}
-
-/*
-**
-**  NTP 
-**
-*/
+extern bool bReconnect;
 
 const int NTP_PACKET_SIZE = 48; 
-byte packetBuffer[ NTP_PACKET_SIZE]; 
-void NTPRefresh() {
-	String tmp = String(fifoq.getCount());
-    wserial.println(tmp);
+extern byte packetBuffer[]; 
 
-	if (WiFi.status() == WL_CONNECTED)
-	{
-		IPAddress timeServerIP; 
-		WiFi.hostByName(config.ntpServerName.c_str(), timeServerIP); 
-		//sendNTPpacket(timeServerIP); // send an NTP packet to a time server
+#define VERSION_1 'B'
 
+static const uint8_t monthDays[]={31,28,31,30,31,30,31,31,30,31,30,31}; 
+#define LEAP_YEAR(Y) ( ((1970+Y)>0) && !((1970+Y)%4) && ( ((1970+Y)%100) || !((1970+Y)%400) ) )
 
-		wserial.println("sending NTP packet...");
-		memset(packetBuffer, 0, NTP_PACKET_SIZE);
-		packetBuffer[0] = 0b11100011;   // LI, Version, Mode
-		packetBuffer[1] = 0;     // Stratum, or type of clock
-		packetBuffer[2] = 6;     // Polling Interval
-		packetBuffer[3] = 0xEC;  // Peer Clock Precision
-		packetBuffer[12]  = 49;
-		packetBuffer[13]  = 0x4E;
-		packetBuffer[14]  = 49;
-		packetBuffer[15]  = 52;
-		UDPNTPClient.beginPacket(timeServerIP, 123); 
-		UDPNTPClient.write(packetBuffer, NTP_PACKET_SIZE);
-		UDPNTPClient.endPacket();
+void reconnectCheck();
+void ConfigureWifi();
+void WriteConfig();
+boolean ReadConfig();
+void NTPRefresh();
+void Second_Tick();
+void printDirectory(File dir, int numTabs);
 
-
-		delay(1000);
-  
-		int cb = UDPNTPClient.parsePacket();
-		if (!cb) {
-			wserial.println("NTP no packet yet");
-		}
-		else 
-		{
-			wserial.print("NTP packet received, length=");
-			wserial.println(String(cb));
-			UDPNTPClient.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
-			unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
-			unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-			unsigned long secsSince1900 = highWord << 16 | lowWord;
-			const unsigned long seventyYears = 2208988800UL;
-			unsigned long epoch = secsSince1900 - seventyYears;
-			UnixTimestamp = epoch;
-      ntpSyncd = true;
-		}
-	}
-}
-
-void Second_Tick()
-{
-	strDateTime tempDateTime;
-	AdminTimeOutCounter++;
-	cNTP_Update++;
-	UnixTimestamp++;
-	ConvertUnixTimeStamp(UnixTimestamp +  (config.timezone *  360) , &tempDateTime);
-	if (config.daylight) // Sommerzeit beachten
-		if (summertime(tempDateTime.year,tempDateTime.month,tempDateTime.day,tempDateTime.hour,0))
-		{
-			ConvertUnixTimeStamp(UnixTimestamp +  (config.timezone *  360) + 3600, &DateTime);
-		}
-		else
-		{
-			DateTime = tempDateTime;
-		}
-	else
-	{
-			DateTime = tempDateTime;
-	}
-	Refresh = true;
-}
- 
+boolean summertime(int year, byte month, byte day, byte hour, byte tzHours);
+boolean checkRange(String Value);
+void WriteStringToEEPROM(int beginaddress, String string);
+String  ReadStringFromEEPROM(int beginaddress);
+void EEPROMWritelong(int address, long value);
+long EEPROMReadlong(long address);
+void ConvertUnixTimeStamp( unsigned long TimeStamp, struct strDateTime2* DateTime);
+String GetMacAddress();
+unsigned char h2int(char c);
+String urldecode(String input);
+String getConnectionState();
 
 #endif
