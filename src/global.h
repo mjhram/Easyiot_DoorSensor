@@ -3,10 +3,10 @@
 
 #include <ESP8266WiFi.h>
 #define FS_NO_GLOBALS
-#include <FS.h>
+//#include <FS.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <SPIFFSEditor.h>
+//#include <SPIFFSEditor.h>
 #include <Ticker.h>
 #include <AsyncMqttClient.h>
 #include <SimpleTimer.h>
@@ -76,6 +76,7 @@ class EventStruct {
   int8 pinIdx;
   int trigger;//0 don't trigger action, 1 trigger
   long time;
+  unsigned long timestamp;
 	String toString() {
 		String tmp;
 		switch(type) {
@@ -110,6 +111,7 @@ class EventStruct {
     pinIdx = ev.pinIdx;
     trigger = ev.trigger;
     time = ev.time;
+    timestamp = ev.timestamp;
   }
 
   void operator=(const EventStruct &ev) {
@@ -118,6 +120,7 @@ class EventStruct {
     pinIdx = ev.pinIdx;
     trigger = ev.trigger;
     time = ev.time;
+    timestamp = ev.timestamp;
   }
   /*
   //use time & pinIdx to compare 2 events directly without operator:
@@ -140,20 +143,7 @@ class EventStruct {
   }*/
 };
 
-class EventsArray {
-	public:
-	int size;
-	EventStruct* events;
-
-	EventsArray(int nEvents) {
-		size = nEvents;
-		events = new EventStruct[nEvents];
-	}
-	EventsArray() {}
-};
-
 const EventStruct dummyEvent = {Dummy, -1, -1, false, -1};
-//Queue<EventStruct> fifoq = new Queue
 extern Queue	fifoq;
 extern Queue publishq;
 //volatile EventStruct doorEvent;
@@ -167,6 +157,18 @@ const byte sensorPinsInvert[NPINS]={0, 1, 0};//, 0, 1};
 const EventType eventType[NPINS]={DoorEvent, PowerEvent, AnalogEvent};//, DoorEvent, PowerEvent};
 extern EventStruct lastEvent[];//, dummyEvent, dummyEvent};
 const int sensorPinMode[NPINS] = {RISING, FALLING, 0};
+class EventsArray {
+	public:
+	int size;
+	EventStruct events[NPINS];
+  
+	EventsArray(int nEvents) {
+		size = nEvents;
+		//events = new EventStruct[nEvents];
+	}
+	EventsArray() {}
+};
+
 /////////////////////
 /*
 **

@@ -4,8 +4,8 @@
 #define ACCESS_POINT_NAME  "ESP_Test"        
 #define ACCESS_POINT_PASSWORD  "123456" 
 #define AdminTimeOut 3600  // Defines the Time in Seconds, when the Admin-Mode will be diabled
-const char* http_username = "admin";
-const char* http_password = "admin";
+//const char* http_username = "admin";
+//const char* http_password = "admin";
 
 
 #define EIOTCLOUD_MODULEID 4
@@ -85,9 +85,9 @@ void sendIfttt_espOn(){
 void publish2thingspeak(){
   EventsArray events;
   //read analog A0:
-  /*int sensorValue = analogRead(A0);
+  int sensorValue = analogRead(A0);
   String tmpstr = "Analog Val:"+String(sensorValue);
-  wserial.println(tmpstr);*/
+  wserial.println(tmpstr);
 
   if(publishq.peek(&events)==false) return;
   wserial.print("publish2thingspeak");
@@ -111,8 +111,15 @@ void publish2thingspeak(){
     if(k != 0) {
       data+=String("&");
     }
-    data += String("field"+String(tmp)+"=" + valueStr);    
+    data += String("field"+String(tmp)+"=" + valueStr);  
   }
+  if(DateTime.year > 2000) {
+      String dt = (String)DateTime.year+ "-" +(String)DateTime.month+ "-" +(String)DateTime.day
+      + " " + (String)DateTime.hour+":"+(String)+ DateTime.minute+":"+(String)DateTime.second;
+      
+      data += String("&created_at=")+dt;
+      data += String("&timezone=Asia/Baghdad");
+    }  
   String topicString ="channels/" + String( myChannelNumber ) + "/publish/"+String(myWriteAPIKey);
   int result = mqttClient.publish(topicString.c_str(), 0, false, data.c_str()); 
   if(result == 1) {
@@ -150,6 +157,7 @@ EventStruct handleInterruptQ(int pinIdx, bool doPublish=false) {
   event.pinIdx = pinIdx;
   event.type = eventType[pinIdx];
   event.time  = millis();
+  event.timestamp = UnixTimestamp;
   String tmp = "time:"+String(event.time);  
   wserial.println(tmp);
   event.trigger = 0;
@@ -407,8 +415,10 @@ void Repeate5m() {
   tmp += WiFi.isConnected()?"Connected":"Disconnected";
   tmp+=" \nMQTT:";
   tmp+=mqttClient.connected()?"Connected":"Disconnected";
-  tmp+="\n dTime:";
+  tmp+="\n deltaTime:";
   tmp+=String(millis()-mqttIsConnecting);
+  wserial.println(tmp);
+  tmp=String("Free Heap:")+ String(ESP.getFreeHeap());
   wserial.println(tmp);
   wserial.reopen();
   /*if(sendEspOn == true) {

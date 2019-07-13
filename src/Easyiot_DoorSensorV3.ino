@@ -1,18 +1,3 @@
-/*#include <ESP8266WiFi.h>
-#define FS_NO_GLOBALS
-#include <FS.h>
-#include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <SPIFFSEditor.h>
-#include <Ticker.h>
-#include <AsyncMqttClient.h>
-#include <SimpleTimer.h>
-#include <EEPROM.h>
-#include <WiFiUdp.h>
-#include <cppQueue.h>
-//#include <SD.h>
-*/
-//#include "wSerial.h"
 
 #define RefreshTimerIsOn  false
 
@@ -96,9 +81,9 @@ void setup(){
   setup_wifi();
   ThingSpeak.begin(client);
   setupTelnet();
-  SPIFFS.begin();
+  //SPIFFS.begin();
 
-  server.addHandler(new SPIFFSEditor(http_username,http_password));
+  //server.addHandler(new SPIFFSEditor(http_username,http_password));
   server.on("/hello", [](AsyncWebServerRequest *request){
     request->send(200, "text/plain", "Hello World");
     });
@@ -107,10 +92,9 @@ void setup(){
     //processExample(request);
     });
     
-  server.on ( "/favicon.ico",   [](AsyncWebServerRequest *server) { wserial.println("favicon.ico"); 
-    server->send ( SPIFFS, "/favicon.ico" );  
-     
-  }  );
+  /*server.on ( "/favicon.ico",   [](AsyncWebServerRequest *server) { wserial.println("favicon.ico"); 
+    server->send ( SPIFFS, "/favicon.ico" );       
+  }  );*/
 
    server.on ( "/admin.html", [](AsyncWebServerRequest *server) { 
     wserial.println("admin.html"); 
