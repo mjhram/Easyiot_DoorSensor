@@ -76,7 +76,7 @@ void send_force_event_html (AsyncWebServerRequest *server)
 		wserial.println("topic:"+topic+" -- val:"+pubstr);
 		wserial.println("res:"+String(result));		
 	}
-	server->send ( 200, "text/html", PAGE_ForceEvent ); 
+	server->send_P ( 200, "text/html", PAGE_ForceEvent ); 
 	Serial.println(__FUNCTION__); 
 }
 void send_force_open_html (AsyncWebServerRequest *server)

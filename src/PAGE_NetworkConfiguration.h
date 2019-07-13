@@ -98,7 +98,7 @@ void send_network_configuration_html(AsyncWebServerRequest *server)
 			if (server->getParam(i)->name() == "gw_3") if (checkRange(server->getParam(i)->value())) 	config.Gateway[3] =  server->getParam(i)->value().toInt();
 			if (server->getParam(i)->name() == "dhcp") config.dhcp = true;
 		}
-		server->send ( 200, "text/html", PAGE_WaitAndReload );
+		server->send_P ( 200, "text/html", PAGE_WaitAndReload );
 		WriteConfig();
 		//ConfigureWifi();
 		AdminTimeOutCounter=0;
@@ -106,7 +106,7 @@ void send_network_configuration_html(AsyncWebServerRequest *server)
 	}
 	else
 	{
-		server->send ( 200, "text/html", PAGE_NetworkConfiguration ); 
+		server->send_P ( 200, "text/html", PAGE_NetworkConfiguration ); 
 	}
 	Serial.println(__FUNCTION__); 
 }

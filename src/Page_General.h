@@ -106,7 +106,7 @@ void send_general_html(AsyncWebServerRequest *server)
 		WriteConfig();
 		firstStart = true;
 	}
-	server->send ( 200, "text/html", PAGE_AdminGeneralSettings ); 
+	server->send_P ( 200, "text/html", PAGE_AdminGeneralSettings ); 
 	Serial.println(__FUNCTION__); 
 	
 	

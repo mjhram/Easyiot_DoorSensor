@@ -102,7 +102,7 @@ void send_NTP_configuration_html(AsyncWebServerRequest *server)
 		WriteConfig();
 		firstStart = true;
 	}
-	server->send ( 200, "text/html", PAGE_NTPConfiguration ); 
+	server->send_P ( 200, "text/html", PAGE_NTPConfiguration ); 
 	Serial.println(__FUNCTION__); 
 	
 }

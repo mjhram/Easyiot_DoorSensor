@@ -98,9 +98,9 @@ void setup(){
 
    server.on ( "/admin.html", [](AsyncWebServerRequest *server) { 
     wserial.println("admin.html"); 
-    server->send ( 200, "text/html", PAGE_AdminMainPage );   
+    server->send_P ( 200, "text/html", PAGE_AdminMainPage );   
     }  );
-    server.on ( "/forceEvent.html", [](AsyncWebServerRequest *server) { 
+    /*server.on ( "/forceEvent.html", [](AsyncWebServerRequest *server) { 
       wserial.println("forceEvent.html"); 
       send_force_event_html(server);  
     }  );
@@ -116,7 +116,7 @@ void setup(){
       wserial.println("/log"); 
       sendLogFile(request);
     }  );
-    
+    */
   server.on ( "/config.html", [](AsyncWebServerRequest *request) { 
     wserial.println("config.html"); 
     send_network_configuration_html(request);
@@ -137,7 +137,7 @@ void setup(){
 
   server.on ( "/info.html", [](AsyncWebServerRequest *request) { 
     wserial.println("info.html"); 
-    request->send ( 200, "text/html", PAGE_Information );   
+    request->send_P ( 200, "text/html", PAGE_Information );   
     }  );
   server.on ( "/admin/infovalues", [](AsyncWebServerRequest *request) { 
     send_information_values_html(request);
@@ -167,16 +167,16 @@ void setup(){
 
 
 
-  server.on ( "/admin/filldynamicdata",  [](AsyncWebServerRequest *request){
+  /*server.on ( "/admin/filldynamicdata",  [](AsyncWebServerRequest *request){
     filldynamicdata(request);
-    });
+    });*/
   server.on ( "/style.css", [](AsyncWebServerRequest *request) { 
     wserial.println("style.css"); 
-    request->send ( 200, "text/plain", PAGE_Style_css );  
+    request->send_P ( 200, "text/plain", PAGE_Style_css );  
     } );
   server.on ( "/microajax.js", [](AsyncWebServerRequest *request) { 
     wserial.println("microajax.js"); 
-    request->send ( 200, "text/plain", PAGE_microajax_js );  
+    request->send_P ( 200, "text/plain", PAGE_microajax_js );  
     } );
   
   server.begin();

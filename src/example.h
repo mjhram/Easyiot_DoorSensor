@@ -1,4 +1,4 @@
-#ifndef PAGE_EXAMPLE_H
+#if 0 //ndef PAGE_EXAMPLE_H
 #define PAGE_EXAMPLE_H
 //
 //   The EXAMPLE PAGE
@@ -34,7 +34,7 @@ const char PAGE_example[] PROGMEM = R"=====(
 #endif
 
 
-void filldynamicdata(AsyncWebServerRequest *server)
+/*void filldynamicdata(AsyncWebServerRequest *server)
 {        
     String values ="";
     values += "mydynamicdata|" + (String) + "This is filled by AJAX. Millis since start: " + (String) millis() + "|div\n";   // Build a string, like this:  ID|VALUE|TYPE
@@ -56,3 +56,4 @@ void processExample(AsyncWebServerRequest *server)
     }
     server->send ( 200, "text/html", PAGE_example  ); 
 }
+*/
