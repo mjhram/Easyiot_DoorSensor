@@ -23,7 +23,7 @@ unsigned long myChannelNumber = 772321;
 const char * myWriteAPIKey = "1L8YUJBDUEJ8OFMR";
 
 AsyncMqttClient mqttClient;
-Ticker mqttReconnectTimer;
+//Ticker mqttReconnectTimer;
 Ticker wifiReconnectTimer;
 WiFiEventHandler wifiConnectHandler;
 WiFiEventHandler wifiDisconnectHandler;
@@ -83,24 +83,40 @@ void sendIfttt_espOn(){
 }
 
 void publish2thingspeak(){
-  EventStruct event;
-  if(publishq.peek(&event)==false) return;
-  wserial.println("publish2thingspeak...");
-  wserial.println(event.toString());
-  bool a = event.trigger;
-  if(sensorPinsInvert[event.pinIdx]==1) {
-      //invert
-      a = !a;
+  EventsArray events;
+  //read analog A0:
+  /*int sensorValue = analogRead(A0);
+  String tmpstr = "Analog Val:"+String(sensorValue);
+  wserial.println(tmpstr);*/
+
+  if(publishq.peek(&events)==false) return;
+  wserial.print("publish2thingspeak");
+  if(!mqttClient.connected()) {
+    wserial.println("-> MQTT not connected");
+    return;
+  }else{
+    wserial.println("...");
   }
-  //bool a = (sensorPinsInvert[event.pinIdx]==1)?~event.trigger:event.trigger;//mistake in use ~(bitwise negation) while ! should be used
-  String valueStr = a?"1":"0";
-  String data="";
-  int tmp = event.pinIdx+1;
-  data = String("field"+String(tmp)+"=" + valueStr);
+  String data="";    
+  for(int k=0; k<events.size; k++) {
+    wserial.println(events.events[k].toString());
+    int a = events.events[k].trigger;
+    if(sensorPinsInvert[events.events[k].pinIdx]==1) {
+        //invert
+        a = (a==1)?0:1;
+    }
+    String valueStr = String(a);//a?"1":"0";
+    int tmp = events.events[k].pinIdx+1;
+    //bool a = (sensorPinsInvert[event.pinIdx]==1)?~event.trigger:event.trigger;//mistake in use ~(bitwise negation) while ! should be used
+    if(k != 0) {
+      data+=String("&");
+    }
+    data += String("field"+String(tmp)+"=" + valueStr);    
+  }
   String topicString ="channels/" + String( myChannelNumber ) + "/publish/"+String(myWriteAPIKey);
   int result = mqttClient.publish(topicString.c_str(), 0, false, data.c_str()); 
   if(result == 1) {
-    publishq.pop(&event);
+    publishq.pop(&events);
   } else {
     wserial.println("event not published => kept in Queue.");
   }
@@ -114,44 +130,55 @@ void publish2thingspeak(){
 }
 
 #define dupEvDuration  2000
-void handleInterruptQ(int pinIdx, bool doPublish=false) {
+EventStruct handleInterruptQ(int pinIdx, bool doPublish=false) {
+  EventStruct event;
+  
   if(pinIdx == -1) {
+    EventsArray events(NPINS);
     wserial.println("check all pins (handleinterrupt(-1)...");
     for(int kk=0; kk<NPINS;kk++){
-        handleInterruptQ(kk, true);
+        event = handleInterruptQ(kk, true);
+        events.events[kk]=event;
     }
-    return;
+    publishq.push(&events);
+    return event;
   }
   if(pinIdx <0 || pinIdx >= NPINS){
-    return;
+    return event;
   }
-  EventStruct event;
   wserial.println("\r\nqueue inteterrupt");
   event.pinIdx = pinIdx;
   event.type = eventType[pinIdx];
-  event.trigger = false;
-  bool a = digitalRead(sensorPins[pinIdx])==1;
-  if(sensorPinsInvert[pinIdx]==0){
-      event.trigger = a;
-  }else{
-      event.trigger = !a;
-  }
   event.time  = millis();
   String tmp = "time:"+String(event.time);  
   wserial.println(tmp);
+  event.trigger = 0;
+  if(event.type == AnalogEvent) {
+    event.trigger = analogRead(sensorPins[pinIdx]);
+    return event;
+  } else {
+    int a = digitalRead(sensorPins[pinIdx]);
+    if(sensorPinsInvert[pinIdx]==0){
+        event.trigger = a;
+    }else{
+        event.trigger = (a==1)?0:1;
+    }
+  }  
   //if(doPublish) 
-  {
+  /*{
+    EventsArray evarr(1);
+    evarr.events[0] = event;
     //publish2thingspeak(event);
     publishq.push(&event);
-  }
-  if(event.trigger == false) {
+  }*/
+  if(event.trigger == 0) {
     wserial.println("false interrupt->neglect");
-    return; //false trigger!
+    return event; //false trigger!
   }
   if(lastEvent[event.pinIdx].time != -1 && event.time-lastEvent[event.pinIdx].time <= dupEvDuration) {
       //fifoq.pop(&ev);
       wserial.println("duplicate event->neglect");
-      return; //duplicated event within dupEvDuration
+      return event; //duplicated event within dupEvDuration
   } 
   lastEvent[event.pinIdx] = event;
   fifoq.push(&event);
@@ -160,42 +187,8 @@ void handleInterruptQ(int pinIdx, bool doPublish=false) {
   wserial.println(String(pinIdx));
   wserial.print("button state:");
   wserial.println(String(event.trigger));
+  return event;
 }
-
-/*void handleInterrupt(int8 pinIdx) {
-  wserial.println("inteterrupt");
-  wserial.println(String(pinIdx));
-  doorEvent.pinIdx = pinIdx;
-  doorEvent.type = eventType[pinIdx];
-  doorEvent.trigger = false;
-  doorEvent.time  = millis();
-  wserial.print("Pins:");
-  if(pinIdx == -1) {
-    for(int kk=0; kk<NPINS;kk++){
-        if(doorEvent.type == PowerEvent) {
-          continue;
-        }
-        bool a = digitalRead(sensorPins[kk])==1;
-        if(sensorPinsInvert[kk]==0){
-           doorEvent.trigger |= a;
-        }else{
-            doorEvent.trigger |= !a;
-        }
-        wserial.print(String(a)+"--");
-    } 
-  } else {
-        bool a = digitalRead(sensorPins[pinIdx])==1;
-        doorEvent.trigger = a;
-        wserial.print(String(a)+"");
-  }
-  wserial.println("");
-  newEvent = true;
-  if(doorEvent.trigger){
-    sendIfttt = true;
-  }
-  wserial.print("button state:");
-  wserial.println(String(doorEvent.trigger));
-}*/
 
 void handleInterrupt1() {
   handleInterruptQ(0);
@@ -206,13 +199,16 @@ void handleInterrupt2() {
 void handleInterrupt3() {
   handleInterruptQ(2);
 }
+void handleInterruptEmpty() {
+  
+}
 //const int buttonPin = D1;//D3; //D3 is flash Button
-void (* handleInt[NPINS])() ={handleInterrupt1, handleInterrupt2};//, handleInterrupt3};
+void (* handleInt[NPINS])() ={handleInterrupt1, handleInterrupt2, handleInterruptEmpty};//, handleInterrupt3};
 const int outPin = D4;  //D4 == 2 is LED
 
-bool mqttIsConnecting = false;
+long mqttIsConnecting = 0;
 void connectToMqtt() {
-  mqttIsConnecting = false;
+  mqttIsConnecting = millis();
   
   if(!mqttClient.connected()) {
       wserial.println("Connecting to MQTT...");
@@ -252,9 +248,9 @@ void onMqttConnect(bool sessionPresent) {
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   wserial.println("Disconnected from MQTT.");
 
-  if (WiFi.isConnected()) {
+  /*if (WiFi.isConnected()) {
     mqttReconnectTimer.once(2, connectToMqtt);
-  }
+  }*/
   state = 2;
 }
 
@@ -315,7 +311,7 @@ void onWifiConnect(const WiFiEventStationModeGotIP& event) {
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
   wserial.println("Disconnected from Wi-Fi.");
-  mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+  //mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(10, reconnectToWifi);
   state = 1;
 }
@@ -340,15 +336,13 @@ void processCmdRemoteDebug() {
 		debugA("* Queue Cleared");
     fifoq.clean();
 	} else if (lastCmd == "getq") {
-
-		// Benchmark 2 - Print/println
-
 		debugA("* Queue entries#: %d", fifoq.getCount());
 	} else if (lastCmd == "getpq") {
-
-		// Benchmark 2 - Print/println
-
 		debugA("* Publish Queue entries#: %d", publishq.getCount());
+	}else if (lastCmd == "close") {
+    wserial.close();
+	}else if (lastCmd == "open") {
+    wserial.open();
 	}
 }
 
@@ -360,6 +354,7 @@ void initSetup() {
   pinMode(outPin, OUTPUT); 
   pinMode(D0, OUTPUT); digitalWrite(D0, HIGH); //will use it for reseting
   for (int kk=0; kk<NPINS;kk++) {
+    if(eventType[kk] == AnalogEvent) continue;
     if(sensorPinsInvert[kk]==0) {
       pinMode(sensorPins[kk], INPUT_PULLUP);
     }else{
@@ -398,7 +393,9 @@ void setupTelnet() {
 
 	String helpCmd = "clrq - Clear Queue\r\n";
 	helpCmd.concat("getq - Get # Queue entries count\n");
-  helpCmd.concat("getpq - Get # publish queue entries");
+  helpCmd.concat("getpq - Get # publish queue entries\n");
+  helpCmd.concat("close - Close logfile\n");
+  helpCmd.concat("open - Open logfile\n");
 
 	Debug.setHelpProjectsCmds(helpCmd);
 	Debug.setCallBackProjectCmds(&processCmdRemoteDebug);
@@ -406,7 +403,14 @@ void setupTelnet() {
 
 void Repeate5m() {
   handleInterruptQ(-1);
-  wserial.flush();
+  String tmp="Status \nWIFI:";
+  tmp += WiFi.isConnected()?"Connected":"Disconnected";
+  tmp+=" \nMQTT:";
+  tmp+=mqttClient.connected()?"Connected":"Disconnected";
+  tmp+="\n dTime:";
+  tmp+=String(millis()-mqttIsConnecting);
+  wserial.println(tmp);
+  wserial.reopen();
   /*if(sendEspOn == true) {
     sendIfttt_espOn();
   }*/

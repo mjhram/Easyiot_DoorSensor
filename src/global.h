@@ -67,14 +67,14 @@ struct strConfig {
 };
 extern strConfig config;
 /////////////////////
-enum EventType {Dummy, DoorEvent, PowerEvent};
+enum EventType {Dummy, DoorEvent, PowerEvent, AnalogEvent};
 
 class EventStruct {
   public:
   EventType type;//door, power
   byte state;//door open/closed, power down/up => not used for now
   int8 pinIdx;
-  bool trigger;//0 don't trigger action, 1 trigger
+  int trigger;//0 don't trigger action, 1 trigger
   long time;
 	String toString() {
 		String tmp;
@@ -90,14 +90,13 @@ class EventStruct {
 				break;
 		}
 		tmp+=" -Pin:"+String(pinIdx);
-		tmp+=" -trigger:";
-		tmp+= trigger?"true":"false";
+		tmp+=" -trigger:"+String(trigger);
 		return tmp;
 	}
   EventStruct() {
     
   }
-  EventStruct(EventType t, byte st, byte id, bool tr, long tm) {
+  EventStruct(EventType t, byte st, byte id, int tr, long tm) {
     type = t;
     state = st;
     pinIdx = id;
@@ -141,22 +140,33 @@ class EventStruct {
   }*/
 };
 
+class EventsArray {
+	public:
+	int size;
+	EventStruct* events;
+
+	EventsArray(int nEvents) {
+		size = nEvents;
+		events = new EventStruct[nEvents];
+	}
+	EventsArray() {}
+};
+
 const EventStruct dummyEvent = {Dummy, -1, -1, false, -1};
 //Queue<EventStruct> fifoq = new Queue
 extern Queue	fifoq;
 extern Queue publishq;
 //volatile EventStruct doorEvent;
 //volatile bool newEvent, isNotifying, sendIfttt; 
-extern bool isNotifyingQ;
 //bool sendEspOn = true;
 
 
-#define NPINS 2
-const int sensorPins[NPINS]={D1, D2};//, D2, D5};
-const byte sensorPinsInvert[NPINS]={0, 1};//, 0, 1};
-const EventType eventType[NPINS]={DoorEvent, PowerEvent};//, DoorEvent, PowerEvent};
-extern EventStruct lastEvent[];;//, dummyEvent, dummyEvent};
-const int sensorPinMode[NPINS] = {RISING, FALLING};
+#define NPINS 3
+const int sensorPins[NPINS]={D1, D2, A0};//, D2, D5};
+const byte sensorPinsInvert[NPINS]={0, 1, 0};//, 0, 1};
+const EventType eventType[NPINS]={DoorEvent, PowerEvent, AnalogEvent};//, DoorEvent, PowerEvent};
+extern EventStruct lastEvent[];//, dummyEvent, dummyEvent};
+const int sensorPinMode[NPINS] = {RISING, FALLING, 0};
 /////////////////////
 /*
 **
