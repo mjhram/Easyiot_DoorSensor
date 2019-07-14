@@ -35,24 +35,24 @@ extern boolean Refresh; // For Main Loop, to refresh things like GPIO / WS2812
 extern int cNTP_Update;											// Counter for Updating the time via NTP
 extern Ticker tkSecond;												// Second - Timer for Updating Datetime Structure
 extern boolean AdminEnabled;		// Enable Admin Mode for a given Time
-extern byte Minute_Old;				// Helpvariable for checking, when a new Minute comes up (for Auto Turn On / Off)
+//extern byte Minute_Old;				// Helpvariable for checking, when a new Minute comes up (for Auto Turn On / Off)
 extern bool ntpSyncd;
 extern bool disarm;
 
 
 struct strConfig {
-	String ssid;
-	String password;
+	char ssid[16];
+	char password[16];
 	byte  IP[4];
 	byte  Netmask[4];
 	byte  Gateway[4];
 	boolean dhcp;
-	String ntpServerName;
-	long Update_Time_Via_NTP_Every;
-	long timezone;
+	char ntpServerName[32];
+	uint8 Update_Time_Via_NTP_Every;
+	int8 timezone;
 	boolean daylight;
-	String DeviceName;
-	boolean AutoTurnOff;
+	char DeviceName[16];
+	/*boolean AutoTurnOff;
 	boolean AutoTurnOn;
 	byte TurnOffHour;
 	byte TurnOffMinute;
@@ -63,7 +63,7 @@ struct strConfig {
 	byte LED_B;
 
   uint moduleId;  // module id
-  boolean state;     // state
+  boolean state;     // state*/
 };
 extern strConfig config;
 /////////////////////
@@ -181,7 +181,7 @@ extern bool bReconnect;
 const int NTP_PACKET_SIZE = 48; 
 extern byte packetBuffer[]; 
 
-#define VERSION_1 'B'
+#define VERSION_1 '1'
 
 static const uint8_t monthDays[]={31,28,31,30,31,30,31,31,30,31,30,31}; 
 #define LEAP_YEAR(Y) ( ((1970+Y)>0) && !((1970+Y)%4) && ( ((1970+Y)%100) || !((1970+Y)%400) ) )
@@ -205,5 +205,6 @@ String GetMacAddress();
 unsigned char h2int(char c);
 String urldecode(String input);
 String getConnectionState();
+String config2String(strConfig& cfg);
 
 #endif

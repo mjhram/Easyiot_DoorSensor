@@ -8,7 +8,7 @@
 //const char* http_password = "admin";
 
 
-#define EIOTCLOUD_MODULEID 4
+//#define EIOTCLOUD_MODULEID 4
 /*
 #define MQTT_USERNAME "mjhram"
 #define MQTT_PASSWORD "passinto"
@@ -351,7 +351,9 @@ void processCmdRemoteDebug() {
     wserial.close();
 	}else if (lastCmd == "open") {
     wserial.open();
-	}
+	} else if (lastCmd == "cfg") {
+    wserial.println(config2String(config));
+	} 
 }
 
 void initSetup() {
@@ -404,6 +406,7 @@ void setupTelnet() {
   helpCmd.concat("getpq - Get # publish queue entries\n");
   helpCmd.concat("close - Close logfile\n");
   helpCmd.concat("open - Open logfile\n");
+  helpCmd.concat("cfg - Get Settings\n");
 
 	Debug.setHelpProjectsCmds(helpCmd);
 	Debug.setCallBackProjectCmds(&processCmdRemoteDebug);
@@ -433,7 +436,7 @@ void setup_wifi() {
 
   // We start by connecting to a WiFi network
   WiFi.mode(WIFI_STA);
-  WiFi.begin(config.ssid.c_str(), config.password.c_str());
+  WiFi.begin(config.ssid, config.password);
   
   wserial.println("Connecting to WiFi");
   long time1 = millis();

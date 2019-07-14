@@ -11,8 +11,8 @@ const char PAGE_NetworkConfiguration[] PROGMEM = R"=====(
 Connect to Router with these settings:<br>
 <form action="" method="get">
 <table border="0"  cellspacing="0" cellpadding="3" style="width:310px" >
-<tr><td align="right">SSID:</td><td><input type="text" id="ssid" name="ssid" value=""></td></tr>
-<tr><td align="right">Password:</td><td><input type="text" id="password" name="password" value=""></td></tr>
+<tr><td align="right">SSID:</td><td><input type="text" id="ssid" name="ssid" value="" maxlength="16"></td></tr>
+<tr><td align="right">Password:</td><td><input type="text" id="password" name="password" value=""  maxlength="16"></td></tr>
 <tr><td align="right">DHCP:</td><td><input type="checkbox" id="dhcp" name="dhcp"></td></tr>
 <tr><td align="right">IP:     </td><td><input type="text" id="ip_0" name="ip_0" size="3">.<input type="text" id="ip_1" name="ip_1" size="3">.<input type="text" id="ip_2" name="ip_2" size="3">.<input type="text" id="ip_3" name="ip_3" value="" size="3"></td></tr>
 <tr><td align="right">Netmask:</td><td><input type="text" id="nm_0" name="nm_0" size="3">.<input type="text" id="nm_1" name="nm_1" size="3">.<input type="text" id="nm_2" name="nm_2" size="3">.<input type="text" id="nm_3" name="nm_3" size="3"></td></tr>
@@ -82,8 +82,8 @@ void send_network_configuration_html(AsyncWebServerRequest *server)
 		config.dhcp = false;
 		for ( uint8_t i = 0; i < server->params(); i++ ) {
       Serial.println(server->getParam(i)->name().c_str());
-			if (server->getParam(i)->name()== "ssid") config.ssid =   urldecode(server->getParam(i)->value());
-			if (server->getParam(i)->name()== "password") config.password =    urldecode(server->getParam(i)->value()); 
+			if (server->getParam(i)->name()== "ssid") urldecode(server->getParam(i)->value()).toCharArray(config.ssid, 16);
+			if (server->getParam(i)->name()== "password") urldecode(server->getParam(i)->value()).toCharArray(config.password, 16); 
 			if (server->getParam(i)->name() == "ip_0") if (checkRange(server->getParam(i)->value())) 	config.IP[0] =  server->getParam(i)->value().toInt();
 			if (server->getParam(i)->name() == "ip_1") if (checkRange(server->getParam(i)->value())) 	config.IP[1] =  server->getParam(i)->value().toInt();
 			if (server->getParam(i)->name() == "ip_2") if (checkRange(server->getParam(i)->value())) 	config.IP[2] =  server->getParam(i)->value().toInt();

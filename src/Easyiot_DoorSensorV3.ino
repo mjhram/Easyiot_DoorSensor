@@ -36,18 +36,18 @@ void setup(){
   if (!ReadConfig())
   {
     // DEFAULT CONFIG
-    config.ssid = "MJH_MIFI";
-    config.password = "2013Dgroup2";
+    strncpy(config.ssid, "MJH_MIFI2", 16);
+    strncpy(config.password, "2013Dgroup2", 16);
     config.dhcp = true;
     config.IP[0] = 192;config.IP[1] = 168;config.IP[2] = 1;config.IP[3] = 100;
     config.Netmask[0] = 255;config.Netmask[1] = 255;config.Netmask[2] = 255;config.Netmask[3] = 0;
     config.Gateway[0] = 192;config.Gateway[1] = 168;config.Gateway[2] = 1;config.Gateway[3] = 1;
-    config.ntpServerName = "0.de.pool.ntp.org";
-    config.Update_Time_Via_NTP_Every =  0;
+    strncpy(config.ntpServerName, "0.de.pool.ntp.org", 32);
+    config.Update_Time_Via_NTP_Every =  2;
     config.timezone = +3;
     config.daylight = false;
-    config.DeviceName = "ESP Test";
-    config.AutoTurnOff = false;
+    strncpy(config.DeviceName,"ESP Test", 16);
+    /*config.AutoTurnOff = false;
     config.AutoTurnOn = false;
     config.TurnOffHour = 0;
     config.TurnOffMinute = 0;
@@ -55,7 +55,7 @@ void setup(){
     config.TurnOnMinute = 0;
     
     config.moduleId = EIOTCLOUD_MODULEID;
-    config.state = 0; // off
+    config.state = 0; // off*/
     
     WriteConfig();
     wserial.println("General config applied");
@@ -202,7 +202,7 @@ void loop(){
       cNTP_Update =0;
       firstStart = false;
     }
-    else if ( cNTP_Update > (config.Update_Time_Via_NTP_Every * 60) )
+    else if ( cNTP_Update > (int)(config.Update_Time_Via_NTP_Every * 60) )
     {
 
       NTPRefresh();
@@ -210,7 +210,7 @@ void loop(){
     }
   }
 
-  if(DateTime.minute != Minute_Old)
+  /*if(DateTime.minute != Minute_Old)
   {
      Minute_Old = DateTime.minute;
      if (config.AutoTurnOn)
@@ -230,7 +230,7 @@ void loop(){
           wserial.println("SwitchOff");
        }
      }
-  }
+  }*/
 
   if (Refresh)  
   {

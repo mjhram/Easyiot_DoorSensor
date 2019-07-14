@@ -83,7 +83,7 @@ void send_NTP_configuration_html(AsyncWebServerRequest *server)
 		for ( uint8_t i = 0; i < server->params(); i++ ) {
       Serial.println(server->getParam(i)->name().c_str());
 			if (server->getParam(i)->name() == "ntpserver") {
-			  config.ntpServerName = urldecode( server->getParam(i)->value()); 
+			  urldecode( server->getParam(i)->value()).toCharArray(config.ntpServerName, 32); 
         Serial.println(config.ntpServerName);
 			}
 			if (server->getParam(i)->name() == "update") {

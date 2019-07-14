@@ -20,7 +20,7 @@ boolean Refresh = false; // For Main Loop, to refresh things like GPIO / WS2812
 int cNTP_Update = 0;											// Counter for Updating the time via NTP
 Ticker tkSecond;												// Second - Timer for Updating Datetime Structure
 boolean AdminEnabled = false;		// Enable Admin Mode for a given Time
-byte Minute_Old = 100;				// Helpvariable for checking, when a new Minute comes up (for Auto Turn On / Off)
+//byte Minute_Old = 100;				// Helpvariable for checking, when a new Minute comes up (for Auto Turn On / Off)
 bool ntpSyncd = false;
 bool disarm = false;
 
@@ -34,6 +34,12 @@ EventStruct lastEvent[NPINS]={dummyEvent, dummyEvent, dummyEvent};//, dummyEvent
 bool bReconnect = false;
 byte packetBuffer[ NTP_PACKET_SIZE]; 
 
+String config2String(strConfig& cfg) {
+	String tmp = "";
+	tmp +="ssid:"+String(cfg.ssid);
+	tmp +="\ntimezone:"+String(cfg.timezone);
+	return tmp;
+}
 //
 // Summertime calculates the daylight saving for a given date.
 //
@@ -240,9 +246,9 @@ void reconnectCheck() {
 void ConfigureWifi()
 {
 	wserial.println("Configuring Wifi");
-   wserial.println(config.ssid.c_str());
+   wserial.println(config.ssid);
    wserial.print("=>");
-   wserial.print(config.password.c_str());
+   wserial.print(config.password);
    //disconnect WiFi
    WiFi.disconnect(true);
    wserial.println("Dis-connnecting");
@@ -282,18 +288,21 @@ void WriteConfig()
 	EEPROM.write(0,VERSION_1);
 	EEPROM.write(1,'F');
 	EEPROM.write(2,'G');
-
+	
+	EEPROM.put(16, config);
+	#if 0
+	
 	EEPROM.write(16,config.dhcp);
 	EEPROM.write(17,config.daylight);
 	
-	EEPROMWritelong(18,config.Update_Time_Via_NTP_Every); // 4 Byte
+	EEPROM.write(18,config.Update_Time_Via_NTP_Every); //  Byte
 
-	EEPROMWritelong(22,config.timezone);  // 4 Byte
+	EEPROM.write(22,config.timezone);  //  Byte
 
 
-	EEPROM.write(26,config.LED_R);
+	/*EEPROM.write(26,config.LED_R);
 	EEPROM.write(27,config.LED_G);
-	EEPROM.write(28,config.LED_B);
+	EEPROM.write(28,config.LED_B);*/
 
 	EEPROM.write(32,config.IP[0]);
 	EEPROM.write(33,config.IP[1]);
@@ -311,20 +320,21 @@ void WriteConfig()
 	EEPROM.write(43,config.Gateway[3]);
 
 
-	WriteStringToEEPROM(64,config.ssid);
-	WriteStringToEEPROM(96,config.password);
-	WriteStringToEEPROM(128,config.ntpServerName);
+	EEPROM.put(64,config.ssid);
+	EEPROM.put(96,config.password);
+	EEPROM.put(128,config.ntpServerName);
 
-	EEPROM.write(300,config.AutoTurnOn);
+	/*EEPROM.write(300,config.AutoTurnOn);
 	EEPROM.write(301,config.AutoTurnOff);
 	EEPROM.write(302,config.TurnOnHour);
 	EEPROM.write(303,config.TurnOnMinute);
 	EEPROM.write(304,config.TurnOffHour);
-	EEPROM.write(305,config.TurnOffMinute);
-	WriteStringToEEPROM(306,config.DeviceName);
-	EEPROM.write(338,config.moduleId);
-  	EEPROM.write(339,config.state);
-
+	EEPROM.write(305,config.TurnOffMinute);*/
+	//WriteStringToEEPROM
+	EEPROM.put(306,config.DeviceName);
+	//EEPROM.write(338,config.moduleId);
+  	//EEPROM.write(339,config.state);
+	#endif
 	EEPROM.commit();
 }
 boolean ReadConfig()
@@ -334,46 +344,46 @@ boolean ReadConfig()
 	if (EEPROM.read(0) == VERSION_1 && EEPROM.read(1) == 'F'  && EEPROM.read(2) == 'G' )
 	{
 		wserial.println("Configurarion Found!");
+		EEPROM.get(16, config);
+		#if 0
 		config.dhcp = 	EEPROM.read(16);
 
 		config.daylight = EEPROM.read(17);
 
-		config.Update_Time_Via_NTP_Every = EEPROMReadlong(18); // 4 Byte
+		config.Update_Time_Via_NTP_Every = EEPROM.read(18); // 4 Byte
 
-		config.timezone = EEPROMReadlong(22); // 4 Byte
+		config.timezone = EEPROMReadlong(19); // 4 Byte
 
-		config.LED_R = EEPROM.read(26);
+		/*config.LED_R = EEPROM.read(26);
 		config.LED_G = EEPROM.read(27);
-		config.LED_B = EEPROM.read(28);
+		config.LED_B = EEPROM.read(28);*/
 
-		config.IP[0] = EEPROM.read(32);
-		config.IP[1] = EEPROM.read(33);
-		config.IP[2] = EEPROM.read(34);
-		config.IP[3] = EEPROM.read(35);
-		config.Netmask[0] = EEPROM.read(36);
-		config.Netmask[1] = EEPROM.read(37);
-		config.Netmask[2] = EEPROM.read(38);
-		config.Netmask[3] = EEPROM.read(39);
-		config.Gateway[0] = EEPROM.read(40);
-		config.Gateway[1] = EEPROM.read(41);
-		config.Gateway[2] = EEPROM.read(42);
-		config.Gateway[3] = EEPROM.read(43);
-		config.ssid = ReadStringFromEEPROM(64);
-		config.password = ReadStringFromEEPROM(96);
-		config.ntpServerName = ReadStringFromEEPROM(128);
-		
-		
-		config.AutoTurnOn = EEPROM.read(300);
+		config.IP[0] = EEPROM.read(20);
+		config.IP[1] = EEPROM.read(21);
+		config.IP[2] = EEPROM.read(22);
+		config.IP[3] = EEPROM.read(23);
+		config.Netmask[0] = EEPROM.read(24);
+		config.Netmask[1] = EEPROM.read(25);
+		config.Netmask[2] = EEPROM.read(26);
+		config.Netmask[3] = EEPROM.read(27);
+		config.Gateway[0] = EEPROM.read(28);
+		config.Gateway[1] = EEPROM.read(29);
+		config.Gateway[2] = EEPROM.read(30);
+		config.Gateway[3] = EEPROM.read(31);
+		EEPROM.get(32, config.ssid);
+		EEPROM.get(64, config.password);
+		EEPROM.get(96, config.ntpServerName);
+		/*config.AutoTurnOn = EEPROM.read(300);
 		config.AutoTurnOff = EEPROM.read(301);
 		config.TurnOnHour = EEPROM.read(302);
 		config.TurnOnMinute = EEPROM.read(303);
 		config.TurnOffHour = EEPROM.read(304);
-		config.TurnOffMinute = EEPROM.read(305);
-		config.DeviceName= ReadStringFromEEPROM(306);
-		config.moduleId = EEPROM.read(338);
-		config.state =  EEPROM.read(339);
-		return true;
-		
+		config.TurnOffMinute = EEPROM.read(305);*/
+		EEPROM.get(306, config.DeviceName);
+		//config.moduleId = EEPROM.read(338);
+		//config.state =  EEPROM.read(339);
+		#endif
+		return true;		
 	}
 	else
 	{
@@ -395,7 +405,7 @@ void NTPRefresh() {
 	if (WiFi.status() == WL_CONNECTED)
 	{
 		IPAddress timeServerIP; 
-		WiFi.hostByName(config.ntpServerName.c_str(), timeServerIP); 
+		WiFi.hostByName(config.ntpServerName, timeServerIP); 
 		//sendNTPpacket(timeServerIP); // send an NTP packet to a time server
 
 
@@ -442,11 +452,11 @@ void Second_Tick()
 	AdminTimeOutCounter++;
 	cNTP_Update++;
 	UnixTimestamp++;
-	ConvertUnixTimeStamp(UnixTimestamp +  (config.timezone *  360) , &tempDateTime);
+	ConvertUnixTimeStamp(UnixTimestamp +  ((int)config.timezone *  360) , &tempDateTime);
 	if (config.daylight) // Sommerzeit beachten
 		if (summertime(tempDateTime.year,tempDateTime.month,tempDateTime.day,tempDateTime.hour,0))
 		{
-			ConvertUnixTimeStamp(UnixTimestamp +  (config.timezone *  360) + 3600, &DateTime);
+			ConvertUnixTimeStamp(UnixTimestamp +  ((int)config.timezone *  360) + 3600, &DateTime);
 		}
 		else
 		{
