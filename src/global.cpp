@@ -37,7 +37,7 @@ byte packetBuffer[ NTP_PACKET_SIZE];
 String config2String(strConfig& cfg) {
 	String tmp = "";
 	tmp +="ssid:"+String(cfg.ssid);
-	tmp +="\ntimezone:"+String(cfg.timezone);
+	tmp +="\ntimezone:"+String(cfg.timezone)+"\n";
 	return tmp;
 }
 //

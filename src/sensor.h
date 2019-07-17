@@ -254,8 +254,8 @@ void onMqttConnect(bool sessionPresent) {
 
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-  wserial.println("Disconnected from MQTT.");
-
+  wserial.print("Disconnected from MQTT.");
+  wserial.println(String("Reason:")+String(static_cast<uint8_t>(reason)));
   /*if (WiFi.isConnected()) {
     mqttReconnectTimer.once(2, connectToMqtt);
   }*/
