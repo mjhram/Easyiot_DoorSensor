@@ -150,6 +150,8 @@ extern Queue publishq;
 //volatile bool newEvent, isNotifying, sendIfttt; 
 //bool sendEspOn = true;
 
+#define WATCHDOG_PIN D0           // used for watchdog (sending pulse every 1sec)
+extern bool watchdogup;            //use it to toggle watchdog pin
 
 #define NPINS 3
 const int sensorPins[NPINS]={D1, D2, A0};//, D2, D5};

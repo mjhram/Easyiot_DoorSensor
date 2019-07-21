@@ -1,6 +1,7 @@
 #include "global.h"
 #include "wSerial.h"
 
+bool watchdogup=false;  
 RemoteDebug Debug;
 strDateTime2 DateTime;											// Global DateTime structure, will be refreshed every Second
 wSerial wserial(Debug, true, DateTime);
@@ -448,6 +449,14 @@ void NTPRefresh() {
 
 void Second_Tick()
 {
+	//toggle watchdog pin:
+	if(watchdogup==true) {
+		watchdogup = false;
+		digitalWrite(WATCHDOG_PIN, LOW);
+	} else {
+		watchdogup = true;
+		digitalWrite(WATCHDOG_PIN, HIGH);
+	}
 	strDateTime2 tempDateTime;
 	AdminTimeOutCounter++;
 	cNTP_Update++;

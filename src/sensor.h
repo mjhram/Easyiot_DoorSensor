@@ -360,7 +360,7 @@ void initSetup() {
   /*newEvent = false;
   isNotifying = false;
   sendIfttt = false;*/
-  
+  pinMode(WATCHDOG_PIN, OUTPUT);
   pinMode(outPin, OUTPUT); 
   pinMode(D0, OUTPUT); digitalWrite(D0, HIGH); //will use it for reseting
   for (int kk=0; kk<NPINS;kk++) {

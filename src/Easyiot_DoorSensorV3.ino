@@ -32,6 +32,7 @@ void setup(){
   EEPROM.begin(512);
   wserial.begin(115200);
   delay(500);
+  wserial.println("Started.");
   initSetup();
   if (!ReadConfig())
   {
