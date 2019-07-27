@@ -154,11 +154,11 @@ extern Queue publishq;
 extern bool watchdogup;            //use it to toggle watchdog pin
 
 #define NPINS 3
-const int sensorPins[NPINS]={D1, D2, A0};//, D2, D5};
-const byte sensorPinsInvert[NPINS]={0, 1, 0};//, 0, 1};
-const EventType eventType[NPINS]={DoorEvent, PowerEvent, AnalogEvent};//, DoorEvent, PowerEvent};
+const int sensorPins[NPINS]={D1, D2, A0};//, D4, D2, D5};
+const byte sensorPinsInvert[NPINS]={0, 1, 0};//, 0};//, 0, 1};
+const EventType eventType[NPINS]={DoorEvent, PowerEvent, AnalogEvent};//, DoorEvent};//, DoorEvent, PowerEvent};
 extern EventStruct lastEvent[];//, dummyEvent, dummyEvent};
-const int sensorPinMode[NPINS] = {RISING, FALLING, 0};
+const int sensorPinMode[NPINS] = {RISING, FALLING, 0};//, RISING};
 class EventsArray {
 	public:
 	int size;

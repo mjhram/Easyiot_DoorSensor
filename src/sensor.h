@@ -207,11 +207,14 @@ void handleInterrupt2() {
 void handleInterrupt3() {
   handleInterruptQ(2);
 }
+void handleInterrupt4() {
+  handleInterruptQ(3);
+}
 void handleInterruptEmpty() {
   
 }
 //const int buttonPin = D1;//D3; //D3 is flash Button
-void (* handleInt[NPINS])() ={handleInterrupt1, handleInterrupt2, handleInterruptEmpty};//, handleInterrupt3};
+void (* handleInt[NPINS])() ={handleInterrupt1, handleInterrupt2, handleInterruptEmpty};//, handleInterrupt4};//, handleInterrupt3};
 const int outPin = D4;  //D4 == 2 is LED
 
 long mqttIsConnecting = 0;
@@ -314,6 +317,8 @@ void reconnectToWifi() {
 
 void onWifiConnect(const WiFiEventStationModeGotIP& event) {
   wserial.println("Connected to Wi-Fi.");
+  WiFi.config(WiFi.localIP(),WiFi.gatewayIP(),WiFi.subnetMask(),WiFi.dnsIP(), IPAddress(8,8,8,8));
+  
   connectToMqtt();
 }
 
@@ -360,6 +365,9 @@ void initSetup() {
   /*newEvent = false;
   isNotifying = false;
   sendIfttt = false;*/
+  pinMode(D3, OUTPUT);
+  digitalWrite(D3, LOW);//D3(GPIO0) is used as ground, to use D4(GPIO02) as input.
+
   pinMode(WATCHDOG_PIN, OUTPUT);
   pinMode(outPin, OUTPUT); 
   pinMode(D0, OUTPUT); digitalWrite(D0, HIGH); //will use it for reseting
