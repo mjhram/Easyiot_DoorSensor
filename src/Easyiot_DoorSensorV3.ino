@@ -27,10 +27,12 @@
 #include "example.h"
 
 WiFiClient client;
+Adafruit_MCP23017 mcp;
 
 void setup(){
   EEPROM.begin(512);
   wserial.begin(115200);
+  mcp.begin();
   delay(500);
   wserial.println("Started.");
   initSetup();

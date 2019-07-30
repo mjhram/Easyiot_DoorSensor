@@ -19,6 +19,9 @@
 
 #include "wSerial.h"
 
+#include <Wire.h>
+#include "Adafruit_MCP23017.h"
+
 extern RemoteDebug Debug;
 extern wSerial wserial;
 
@@ -146,6 +149,7 @@ class EventStruct {
 const EventStruct dummyEvent = {Dummy, -1, -1, false, -1};
 extern Queue	fifoq;
 extern Queue publishq;
+extern Adafruit_MCP23017 mcp;
 //volatile EventStruct doorEvent;
 //volatile bool newEvent, isNotifying, sendIfttt; 
 //bool sendEspOn = true;
@@ -153,12 +157,13 @@ extern Queue publishq;
 #define WATCHDOG_PIN D0           // used for watchdog (sending pulse every 1sec)
 extern bool watchdogup;            //use it to toggle watchdog pin
 
-#define NPINS 3
-const int sensorPins[NPINS]={D1, D2, A0};//, D4, D2, D5};
-const byte sensorPinsInvert[NPINS]={0, 1, 0};//, 0};//, 0, 1};
-const EventType eventType[NPINS]={DoorEvent, PowerEvent, AnalogEvent};//, DoorEvent};//, DoorEvent, PowerEvent};
+#define NPINS 4
+//const int sensorPins[NPINS]={D5, D6, A0};//, D4, D2, D5};
+const int sensorPins[NPINS]={0,1,2,A0};//{D1, D2, A0};//, D4, D2, D5};
+const byte sensorPinsInvert[NPINS]={0, 1, 0, 0};//, 0};//, 0, 1};
+const EventType eventType[NPINS]={DoorEvent, PowerEvent, DoorEvent, AnalogEvent};//, DoorEvent};//, DoorEvent, PowerEvent};
 extern EventStruct lastEvent[];//, dummyEvent, dummyEvent};
-const int sensorPinMode[NPINS] = {RISING, FALLING, 0};//, RISING};
+const int sensorPinMode[NPINS] = {RISING, FALLING, RISING, 0};//, RISING};
 class EventsArray {
 	public:
 	int size;

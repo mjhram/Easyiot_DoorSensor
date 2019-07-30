@@ -165,7 +165,8 @@ EventStruct handleInterruptQ(int pinIdx, bool doPublish=false) {
     event.trigger = analogRead(sensorPins[pinIdx]);
     return event;
   } else {
-    int a = digitalRead(sensorPins[pinIdx]);
+        //int a = digitalRead(sensorPins[pinIdx]);
+    int a = mcp.digitalRead(sensorPins[pinIdx]);
     if(sensorPinsInvert[pinIdx]==0){
         event.trigger = a;
     }else{
@@ -215,7 +216,6 @@ void handleInterruptEmpty() {
 }
 //const int buttonPin = D1;//D3; //D3 is flash Button
 void (* handleInt[NPINS])() ={handleInterrupt1, handleInterrupt2, handleInterruptEmpty};//, handleInterrupt4};//, handleInterrupt3};
-const int outPin = D4;  //D4 == 2 is LED
 
 long mqttIsConnecting = 0;
 void connectToMqtt() {
@@ -329,11 +329,8 @@ void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
   state = 1;
 }
 
-bool ledState=false;
 void repeat1s(){
   if (state==1) {
-    ledState =!ledState;
-    digitalWrite(outPin, ledState?HIGH:LOW);
     wserial.print("-");
   }
 }
@@ -358,6 +355,8 @@ void processCmdRemoteDebug() {
     wserial.open();
 	} else if (lastCmd == "cfg") {
     wserial.println(config2String(config));
+	} else if (lastCmd == "getpins") {
+    wserial.println("NA");
 	} 
 }
 
@@ -365,23 +364,23 @@ void initSetup() {
   /*newEvent = false;
   isNotifying = false;
   sendIfttt = false;*/
-  pinMode(D3, OUTPUT);
-  digitalWrite(D3, LOW);//D3(GPIO0) is used as ground, to use D4(GPIO02) as input.
 
   pinMode(WATCHDOG_PIN, OUTPUT);
-  pinMode(outPin, OUTPUT); 
-  pinMode(D0, OUTPUT); digitalWrite(D0, HIGH); //will use it for reseting
   for (int kk=0; kk<NPINS;kk++) {
     if(eventType[kk] == AnalogEvent) continue;
     if(sensorPinsInvert[kk]==0) {
-      pinMode(sensorPins[kk], INPUT_PULLUP);
+            //pinMode(sensorPins[kk], INPUT_PULLUP);
+      mcp.pinMode(sensorPins[kk], INPUT);
+      mcp.pullUp(sensorPins[kk],HIGH);     // Puled high to ~100k
     }else{
-      pinMode(sensorPins[kk], INPUT);
+      mcp.pinMode(sensorPins[kk], INPUT);
     }
+    #if 0
     attachInterrupt(digitalPinToInterrupt(sensorPins[kk]), handleInt[kk], sensorPinMode[kk]);
+    #endif
   }
   //attachInterrupt(digitalPinToInterrupt(buttonPin), handleInterrupt, CHANGE);
-  digitalWrite(outPin, HIGH);
+  //digitalWrite(outPin, HIGH);
 
   //int switchState = digitalRead(buttonPin);
   //handleInterrupt(-1); //initially force send event 
@@ -415,7 +414,8 @@ void setupTelnet() {
   helpCmd.concat("close - Close logfile\n");
   helpCmd.concat("open - Open logfile\n");
   helpCmd.concat("cfg - Get Settings\n");
-
+  helpCmd.concat("getpins - Get Pins\n");
+  
 	Debug.setHelpProjectsCmds(helpCmd);
 	Debug.setCallBackProjectCmds(&processCmdRemoteDebug);
 }

@@ -30,7 +30,7 @@ strConfig config;
 Queue	fifoq(sizeof(EventStruct), 50, FIFO, true);
 Queue publishq(sizeof(EventsArray), 20, FIFO, true);
 
-EventStruct lastEvent[NPINS]={dummyEvent, dummyEvent, dummyEvent};//, dummyEvent};//, dummyEvent, dummyEvent};
+EventStruct lastEvent[NPINS]={dummyEvent, dummyEvent, dummyEvent, dummyEvent};//, dummyEvent};//, dummyEvent, dummyEvent};
 
 bool bReconnect = false;
 byte packetBuffer[ NTP_PACKET_SIZE]; 
