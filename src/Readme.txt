@@ -12,6 +12,8 @@ Notes:
     This issue happens due to Null IP (no IP obtained from DNS).
     Solved: by adding 2nd DNS server (Google DNS 8.8.8.8) using WiFi.config
 
+4. mqttClient.setMaxTopicLength(200); the default is 128. this includes topic+data
+
 4.extending GPIO by using MCP23017: under process
 
 

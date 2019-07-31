@@ -12,7 +12,7 @@ void wSerial::print(String tmp2)
 {
     String tmp;
     if(newline) {
-        tmp = dTime.toString()+"=>" +tmp2;
+        tmp = dTime.toString()+String("=>") +tmp2;
     } else {
         tmp = tmp2;
     }
@@ -29,7 +29,7 @@ void wSerial::println(String tmp3)
 {
     String tmp;
     if(newline) {
-        tmp = dTime.toString()+"=>" +tmp3;
+        tmp = dTime.toString()+String("=>") +tmp3;
     } else {
         tmp = tmp3;
     }

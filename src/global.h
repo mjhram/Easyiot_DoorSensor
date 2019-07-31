@@ -22,6 +22,12 @@
 #include <Wire.h>
 #include "Adafruit_MCP23017.h"
 
+#define   IntPin D5
+#define   MCP_INT_MIRROR true  // Mirror inta to intb.
+#define   MCP_INT_ODR    false // Open drain.
+#define   attachMcpInterrupt attachInterrupt(digitalPinToInterrupt(IntPin),handleMcpInterrupt,FALLING);
+void handleMcpInterrupt();
+
 extern RemoteDebug Debug;
 extern wSerial wserial;
 

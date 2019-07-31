@@ -108,6 +108,7 @@ void publish2thingspeak(){
     String valueStr = String(a);//a?"1":"0";
     int tmp = events.events[k].pinIdx+1;
     //bool a = (sensorPinsInvert[event.pinIdx]==1)?~event.trigger:event.trigger;//mistake in use ~(bitwise negation) while ! should be used
+    
     if(k != 0) {
       data+=String("&");
     }
@@ -121,7 +122,7 @@ void publish2thingspeak(){
       data += String("&timezone=Asia/Baghdad");
     }  
   String topicString ="channels/" + String( myChannelNumber ) + "/publish/"+String(myWriteAPIKey);
-  int result = mqttClient.publish(topicString.c_str(), 0, false, data.c_str()); 
+  int result = mqttClient.publish(topicString.c_str(), 0, false, data.c_str(), data.length()); 
   if(result == 1) {
     publishq.pop(&events);
   } else {
@@ -161,7 +162,11 @@ EventStruct handleInterruptQ(int pinIdx, bool doPublish=false) {
   String tmp = "time:"+String(event.time);  
   wserial.println(tmp);
   event.trigger = 0;
+  wserial.print("Pins:");
+  wserial.println(String(pinIdx));
+  
   if(event.type == AnalogEvent) {
+    wserial.println("...Analog intr");
     event.trigger = analogRead(sensorPins[pinIdx]);
     return event;
   } else {
@@ -191,14 +196,40 @@ EventStruct handleInterruptQ(int pinIdx, bool doPublish=false) {
   } 
   lastEvent[event.pinIdx] = event;
   fifoq.push(&event);
-  wserial.print("Pins:");
   
-  wserial.println(String(pinIdx));
   wserial.print("button state:");
   wserial.println(String(event.trigger));
   return event;
 }
 
+volatile uint16_t dmy; 
+void handleMcpInterrupt() {
+  uint8_t p,v;
+   Serial.println("<McpInterrupt>");
+   // Debounce. Slow I2C: extra debounce between interrupts anyway.
+   // Can not use delay() in interrupt code.
+   noInterrupts();
+   delayMicroseconds(1000); 
+    
+    // Stop interrupts from external pin.
+   detachInterrupt(digitalPinToInterrupt(IntPin));
+   interrupts(); // re-start interrupts for mcp
+   p = mcp.getLastInterruptPin();
+   // This one resets the interrupt state as it reads from reg INTCAPA(B).
+   v = mcp.getLastInterruptPinValue();
+   //dmy = mcp.readGPIOAB();
+  String tmp = String("Intr on Pin:")+String(p)+String(".");
+  wserial.println(tmp);
+  attachMcpInterrupt;
+
+  if((sensorPinMode[p]==RISING && v==1) || (sensorPinMode[p]==FALLING && v==0)) {
+    handleInterruptQ(p);
+  } else {
+    wserial.println("Dont handled MCP Intr");
+  }
+}
+
+/*
 void handleInterrupt1() {
   handleInterruptQ(0);
 }
@@ -213,9 +244,9 @@ void handleInterrupt4() {
 }
 void handleInterruptEmpty() {
   
-}
+}*/
 //const int buttonPin = D1;//D3; //D3 is flash Button
-void (* handleInt[NPINS])() ={handleInterrupt1, handleInterrupt2, handleInterruptEmpty};//, handleInterrupt4};//, handleInterrupt3};
+//void (* handleInt[NPINS])() ={handleInterrupt1, handleInterrupt2, handleInterruptEmpty};//, handleInterrupt4};//, handleInterrupt3};
 
 long mqttIsConnecting = 0;
 void connectToMqtt() {
@@ -223,6 +254,7 @@ void connectToMqtt() {
   
   if(!mqttClient.connected()) {
       wserial.println("Connecting to MQTT...");
+      mqttClient.setMaxTopicLength(200);
       mqttClient.connect();
       state = 1;
   } else {
@@ -366,6 +398,7 @@ void initSetup() {
   sendIfttt = false;*/
 
   pinMode(WATCHDOG_PIN, OUTPUT);
+  pinMode(IntPin,INPUT);
   for (int kk=0; kk<NPINS;kk++) {
     if(eventType[kk] == AnalogEvent) continue;
     if(sensorPinsInvert[kk]==0) {
@@ -375,10 +408,14 @@ void initSetup() {
     }else{
       mcp.pinMode(sensorPins[kk], INPUT);
     }
-    #if 0
-    attachInterrupt(digitalPinToInterrupt(sensorPins[kk]), handleInt[kk], sensorPinMode[kk]);
-    #endif
+    //attachInterrupt(digitalPinToInterrupt(sensorPins[kk]), handleInt[kk], sensorPinMode[kk]);
+    mcp.setupInterruptPin(sensorPins[kk],CHANGE);
   }
+  mcp.setupInterrupts(MCP_INT_MIRROR, MCP_INT_ODR, LOW);
+  
+  mcp.readGPIOAB(); // Initialise for interrupts.
+
+  attachMcpInterrupt 
   //attachInterrupt(digitalPinToInterrupt(buttonPin), handleInterrupt, CHANGE);
   //digitalWrite(outPin, HIGH);
 
@@ -415,7 +452,7 @@ void setupTelnet() {
   helpCmd.concat("open - Open logfile\n");
   helpCmd.concat("cfg - Get Settings\n");
   helpCmd.concat("getpins - Get Pins\n");
-  
+
 	Debug.setHelpProjectsCmds(helpCmd);
 	Debug.setCallBackProjectCmds(&processCmdRemoteDebug);
 }
