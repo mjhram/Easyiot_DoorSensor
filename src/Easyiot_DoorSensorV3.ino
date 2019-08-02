@@ -190,8 +190,9 @@ void setup(){
   setupOTA();
 }
 
-long isNotifyingQ = -300000;//can notifying immediately
-
+long isNotifyingQ = -notification_delay;//can notifying immediately
+long notificationTime = -notification_delay;
+long publishTime = -notification_delay;
 
 long mTimeSeconds =0;
 Ticker notifyTimer;
@@ -265,21 +266,13 @@ void loop(){
     //mqttReconnectTimer.once(30, connectToMqtt);
     connectToMqtt();
   }
-  if(WiFi.isConnected() && mqttClient.connected() && !fifoq.isEmpty() && ((millis() - isNotifyingQ)>300000) && !disarm) {
-    wserial.println("Queue Size: "+String(fifoq.getCount()));
-    EventStruct ev;
-    if(fifoq.peek(&ev)==false) return;//empty Q
-    /*
-    //if duplicate => dont push the event in queue
-    if(lastEvent[ev.pinIdx].time != -1 && ev.time-lastEvent[ev.pinIdx].time <= dupEvDuration) {
-      fifoq.pop(&ev);
-      wserial.println("duplicate event->dropped");
-      return; //duplicated event within dupEvDuration
-    } */
-    //process the event
-    //isNotifyingQ = millis();
-    //notifyTimer.once(300, notifyingTimeout);
-    runAsyncClientQ();
+  if(WiFi.isConnected() && mqttClient.connected() && ((millis() - isNotifyingQ)>notification_delay)) {
+    if(!fifoq.isEmpty() && !disarm) {
+      wserial.println("Queue Size: "+String(fifoq.getCount()));
+      EventStruct ev;
+      if(fifoq.peek(&ev)==false) return;//empty Q
+      runAsyncClientQ();
+    }
   } 
   Debug.handle();
   timer.run();
@@ -298,7 +291,7 @@ void runAsyncClientQ(){
   if(!aClient){
     //could not allocate client
     wserial.println("could not allocate client");
-    isNotifyingQ = -300000;
+    isNotifyingQ = -notification_delay;
     return;
   }
   aClient->onError([](void * arg, AsyncClient * client, err_t error){
@@ -306,7 +299,7 @@ void runAsyncClientQ(){
     //DEBUG_V("Connect Error\n");
     aClient = NULL;
     delete client;
-    isNotifyingQ = -300000;
+    isNotifyingQ = -notification_delay;
   }, NULL);
 
   aClient->onConnect([](void * arg, AsyncClient * client){
@@ -319,7 +312,7 @@ void runAsyncClientQ(){
       //DEBUG_V("disconnected");
       aClient = NULL;
       delete c;
-      isNotifyingQ = -300000;
+      isNotifyingQ = -notification_delay;
     }, NULL);
 
     client->onData([](void * arg, AsyncClient * c, void * data, size_t len){
@@ -329,7 +322,7 @@ void runAsyncClientQ(){
       for(size_t i=0; i<len;i++)
         wserial.write(d[i]);
     }, NULL);
-    isNotifyingQ = -300000;
+    isNotifyingQ = -notification_delay;
     //send the request
     EventStruct ev;
     if(fifoq.pop(&ev)==false) return;//empty Q
@@ -358,8 +351,9 @@ void runAsyncClientQ(){
   }, NULL);
   
   isNotifyingQ = millis();
+  notificationTime = isNotifyingQ;
   if(!aClient->connect("maker.ifttt.com", 80)){
-    isNotifyingQ = -300000;
+    isNotifyingQ = -notification_delay;
     wserial.println("Connect Fail");
     //DEBUG_V("Connect Fail");
     AsyncClient * client = aClient;

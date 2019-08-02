@@ -36,7 +36,7 @@ int state = 0;  //0: Normal working, LED=>OFF
 
 static AsyncClient *aClient2 = NULL;
 
-void sendIfttt_espOn(){
+/*void sendIfttt_espOn(){
   wserial.println("sendIfttt_espOn()");
   aClient2 = new AsyncClient();
   if(!aClient2){
@@ -80,7 +80,7 @@ void sendIfttt_espOn(){
     aClient2 = NULL;
     delete client;
   }
-}
+}*/
 
 void publish2thingspeak(){
   EventsArray events;
@@ -97,6 +97,12 @@ void publish2thingspeak(){
   }else{
     wserial.println("...");
   }
+  if(notificationTime - millis() < 5000) {//make sure that there is a gap time from last sent notification 
+    String tmp = String("notification in process:") + String(notificationTime);
+    wserial.println(tmp);
+    return;
+  }
+  publishTime = millis();
   String data="";    
   for(int k=0; k<events.size; k++) {
     wserial.println(events.events[k].toString());
@@ -138,7 +144,8 @@ void publish2thingspeak(){
 }
 
 #define dupEvDuration  2000
-EventStruct handleInterruptQ(int pinIdx, bool doPublish=false) {
+
+EventStruct handleInterruptQ(int pinIdx, bool dontPublish=false) {
   EventStruct event;
   
   if(pinIdx == -1) {
@@ -185,18 +192,25 @@ EventStruct handleInterruptQ(int pinIdx, bool doPublish=false) {
     //publish2thingspeak(event);
     publishq.push(&event);
   }*/
-  if(event.trigger == 0) {
-    wserial.println("false interrupt->neglect");
-    return event; //false trigger!
-  }
   if(lastEvent[event.pinIdx].time != -1 && event.time-lastEvent[event.pinIdx].time <= dupEvDuration) {
       //fifoq.pop(&ev);
       wserial.println("duplicate event->neglect");
       return event; //duplicated event within dupEvDuration
   } 
+  if(event.trigger == 0) {
+    wserial.println("false interrupt->neglect");
+    return event; //false trigger!
+  }
   lastEvent[event.pinIdx] = event;
   fifoq.push(&event);
-  
+  //to publish:
+  if(!dontPublish) {
+    EventsArray events(1);
+
+    events.events[0]=event;
+    publishq.push(&events);
+    wserial.println("event to be published.");
+  }
   wserial.print("button state:");
   wserial.println(String(event.trigger));
   return event;
@@ -500,7 +514,7 @@ void setup_wifi() {
   
   wserial.println(String(WiFi.localIP()));
   timer.setInterval(300000, Repeate5m);
-  timer.setInterval(30000, publish2thingspeak);
+  timer.setInterval(31000, publish2thingspeak);
 }
 
 void setupOTA() {

@@ -28,6 +28,11 @@
 #define   attachMcpInterrupt attachInterrupt(digitalPinToInterrupt(IntPin),handleMcpInterrupt,FALLING);
 void handleMcpInterrupt();
 
+#define notification_delay 30000 //in millis
+extern long notificationTime;
+extern long publishTime;
+
+
 extern RemoteDebug Debug;
 extern wSerial wserial;
 
