@@ -19,8 +19,11 @@
 #define MQTT_PASSWORD "Y3OP4BB8DOEOA33G"
 #define MQTT_ADDRESS "mqtt.thingspeak.com"
 
+long subscribeTime = -1;
+uint16_t packetIdSub=0;
 unsigned long myChannelNumber = 772321;
 const char * myWriteAPIKey = "1L8YUJBDUEJ8OFMR";
+const char * myReadAPIKey = "9YBUC8XF4YQMPNA1";
 
 AsyncMqttClient mqttClient;
 //Ticker mqttReconnectTimer;
@@ -281,7 +284,11 @@ void onMqttConnect(bool sessionPresent) {
   wserial.println("Connected to MQTT.");
   wserial.print("Session present: ");
   wserial.println(sessionPresent?"True":"False");
-
+  
+  String tmp = String("channels/772321/subscribe/fields/field5/")+String(myReadAPIKey);
+  packetIdSub = mqttClient.subscribe(tmp.c_str(), 0);
+  wserial.print("Subscribing packetId: ");
+  wserial.println(String(packetIdSub));
   /*uint16_t packetIdSub = mqttClient.subscribe("/4/Sensor.Parameter1", 0);
   wserial.print("Subscribing at QoS 2, packetId: ");
   wserial.println(packetIdSub);
@@ -298,6 +305,7 @@ void onMqttConnect(bool sessionPresent) {
   //wserial.print("Publishing at QoS 2, packetId: ");
   //wserial.println(packetIdPub2);
   */
+
   state = 0;
 }
 
@@ -317,6 +325,8 @@ void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
   wserial.println(String(packetId));
   wserial.print("  qos: ");
   wserial.println(String(qos));
+
+  subscribeTime = millis();
 }
 
 void onMqttUnsubscribe(uint16_t packetId) {
@@ -341,6 +351,32 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
   wserial.println(String(index));
   wserial.print("  total: ");
   wserial.println(String(total));
+  wserial.print("  payload: ");
+  char c[len+1];
+  strncpy(c, payload,len);
+  c[len]='\0';
+  String cmd(c);
+  wserial.println(cmd);
+  long delta = 0;
+  if(subscribeTime < 0) {
+    delta = 0;
+  } else {
+    delta = millis()-subscribeTime;
+  }
+  if(delta < 5000) {
+    
+  } else {
+    wserial.print("subTimeDelta:");
+    wserial.println(String(delta));
+    //process commands
+    //111 == reset
+    if(cmd == "111") {
+      wserial.print("restarting in few sec...");
+      //delay(5000);
+      //ESP.restart();
+      watchdogup = 2;//to restart
+    }
+  }
 }
 
 void onMqttPublish(uint16_t packetId) {
@@ -403,6 +439,9 @@ void processCmdRemoteDebug() {
     wserial.println(config2String(config));
 	} else if (lastCmd == "getpins") {
     wserial.println("NA");
+	} else if (lastCmd == "restart") {
+    wserial.println("restarting...");
+    watchdogup = 2;//to restart
 	} 
 }
 
@@ -466,6 +505,7 @@ void setupTelnet() {
   helpCmd.concat("open - Open logfile\n");
   helpCmd.concat("cfg - Get Settings\n");
   helpCmd.concat("getpins - Get Pins\n");
+  helpCmd.concat("restart - Restarting\n");
 
 	Debug.setHelpProjectsCmds(helpCmd);
 	Debug.setCallBackProjectCmds(&processCmdRemoteDebug);

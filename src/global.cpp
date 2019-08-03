@@ -1,7 +1,7 @@
 #include "global.h"
 #include "wSerial.h"
 
-bool watchdogup=false;  
+byte watchdogup=0;  
 RemoteDebug Debug;
 strDateTime2 DateTime;											// Global DateTime structure, will be refreshed every Second
 wSerial wserial(Debug, true, DateTime);
@@ -37,8 +37,9 @@ byte packetBuffer[ NTP_PACKET_SIZE];
 
 String config2String(strConfig& cfg) {
 	String tmp = "";
-	tmp +="ssid:"+String(cfg.ssid);
-	tmp +="\ntimezone:"+String(cfg.timezone)+"\n";
+	tmp +=String("ssid:")+String(cfg.ssid);
+	tmp +=String("\ntimezone:")+String(cfg.timezone);
+	tmp +=String("\nIntPin: ")+String(digitalRead(IntPin))+String("\n");
 	return tmp;
 }
 //
@@ -450,12 +451,15 @@ void NTPRefresh() {
 void Second_Tick()
 {
 	//toggle watchdog pin:
-	if(watchdogup==true) {
-		watchdogup = false;
+	if(watchdogup==1) {
+		watchdogup = 0;
 		digitalWrite(WATCHDOG_PIN, LOW);
-	} else {
-		watchdogup = true;
+	} else if(watchdogup==0){
+		watchdogup = 1;
 		digitalWrite(WATCHDOG_PIN, HIGH);
+	} else {
+		//stopping watchdog => restart
+		digitalWrite(WATCHDOG_PIN, LOW);
 	}
 	strDateTime2 tempDateTime;
 	AdminTimeOutCounter++;

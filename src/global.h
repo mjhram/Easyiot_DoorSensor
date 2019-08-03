@@ -32,7 +32,8 @@ void handleMcpInterrupt();
 extern long notificationTime;
 extern long publishTime;
 
-
+extern long subscribeTime;
+extern uint16_t packetIdSub;
 extern RemoteDebug Debug;
 extern wSerial wserial;
 
@@ -166,7 +167,7 @@ extern Adafruit_MCP23017 mcp;
 //bool sendEspOn = true;
 
 #define WATCHDOG_PIN D0           // used for watchdog (sending pulse every 1sec)
-extern bool watchdogup;            //use it to toggle watchdog pin
+extern byte watchdogup;            //use it to toggle watchdog pin
 
 #define NPINS 4
 //const int sensorPins[NPINS]={D5, D6, A0};//, D4, D2, D5};
