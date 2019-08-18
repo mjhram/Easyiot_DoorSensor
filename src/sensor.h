@@ -220,7 +220,7 @@ EventStruct handleInterruptQ(int pinIdx, bool dontPublish=false) {
 }
 
 volatile uint16_t dmy; 
-void handleMcpInterrupt() {
+ICACHE_RAM_ATTR void handleMcpInterrupt() {
   uint8_t p,v;
    Serial.println("<McpInterrupt>");
    // Debounce. Slow I2C: extra debounce between interrupts anyway.
@@ -513,6 +513,8 @@ void setupTelnet() {
 
 void Repeate5m() {
   handleInterruptQ(-1);
+  mcp.readGPIOAB();  //reset MCP interrupts:
+
   String tmp="Status \nWIFI:";
   tmp += WiFi.isConnected()?"Connected":"Disconnected";
   tmp+=" \nMQTT:";
@@ -552,7 +554,7 @@ void setup_wifi() {
     onWifiConnect(dummy);
   }
   
-  wserial.println(String(WiFi.localIP()));
+  wserial.println(WiFi.localIP().toString());
   timer.setInterval(300000, Repeate5m);
   timer.setInterval(31000, publish2thingspeak);
 }

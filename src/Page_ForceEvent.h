@@ -93,7 +93,7 @@ void send_force_mqttconnect_html (AsyncWebServerRequest *server)
 	server->send ( 200);
 	Serial.println(__FUNCTION__); 
 }
-
+/*
 void sdCheck() {
 	Sd2Card card;
 	SdVolume volume;
@@ -168,7 +168,7 @@ void sdCheck() {
 
   // list all files in the card with date and size
   root.ls(LS_R | LS_DATE | LS_SIZE);
-}
+}*/
 
 void sendLogFile(AsyncWebServerRequest *request){
   	AsyncWebServerResponse *response = request->beginChunkedResponse("text/plain", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
@@ -178,7 +178,7 @@ void sendLogFile(AsyncWebServerRequest *request){
             wserial.println("can't open SD file for read.");
 			//File root = SD.open("/");
   			//printDirectory(root, 0);
-			  sdCheck();
+			  //sdCheck();
 			return 0;
         }
 		int next = logFile.read(buffer, maxLen);

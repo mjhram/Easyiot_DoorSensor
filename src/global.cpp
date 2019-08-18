@@ -40,6 +40,7 @@ String config2String(strConfig& cfg) {
 	tmp +=String("ssid:")+String(cfg.ssid);
 	tmp +=String("\ntimezone:")+String(cfg.timezone);
 	tmp +=String("\nIntPin: ")+String(digitalRead(IntPin))+String("\n");
+	tmp +=String("\nMcpLastIntPin: ")+String(mcp.getLastInterruptPin())+String("\n");
 	return tmp;
 }
 //
@@ -280,7 +281,7 @@ void ConfigureWifi()
     //#endif
   }
   //timer.disable(reconnectCheckId);*/
- wserial.println(String(WiFi.localIP()));
+ wserial.println(WiFi.localIP().toString());
 }
 
 void WriteConfig()
