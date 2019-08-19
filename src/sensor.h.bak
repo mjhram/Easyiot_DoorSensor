@@ -530,10 +530,8 @@ void setupTelnet() {
 
 void Repeate5m() {
   handleInterruptQ(-1);
-  #if USEMCP
   mcp.readGPIOAB();  //reset MCP interrupts:
-  #endif
-  
+
   String tmp="Status \nWIFI:";
   tmp += WiFi.isConnected()?"Connected":"Disconnected";
   tmp+=" \nMQTT:";

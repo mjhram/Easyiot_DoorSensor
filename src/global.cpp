@@ -39,8 +39,10 @@ String config2String(strConfig& cfg) {
 	String tmp = "";
 	tmp +=String("ssid:")+String(cfg.ssid);
 	tmp +=String("\ntimezone:")+String(cfg.timezone);
+	#if USEMCP
 	tmp +=String("\nIntPin: ")+String(digitalRead(IntPin))+String("\n");
 	tmp +=String("\nMcpLastIntPin: ")+String(mcp.getLastInterruptPin())+String("\n");
+	#endif
 	return tmp;
 }
 //

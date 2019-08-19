@@ -34,9 +34,7 @@ Adafruit_MCP23017 mcp;
 void setup(){
   EEPROM.begin(512);
   wserial.begin(115200);
-  #if USEMCP
   mcp.begin();
-  #endif
   delay(500);
   wserial.println("Started.");
   initSetup();

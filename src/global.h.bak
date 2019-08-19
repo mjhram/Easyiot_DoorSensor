@@ -19,7 +19,7 @@
 
 #include "wSerial.h"
 
-#define USEMCP  false
+#define USEMCP  true
 
 #if USEMCP
 #include <Wire.h>
@@ -165,9 +165,7 @@ class EventStruct {
 const EventStruct dummyEvent = {Dummy, -1, -1, false, -1};
 extern Queue	fifoq;
 extern Queue publishq;
-#if USEMCP
 extern Adafruit_MCP23017 mcp;
-#endif
 //volatile EventStruct doorEvent;
 //volatile bool newEvent, isNotifying, sendIfttt; 
 //bool sendEspOn = true;
