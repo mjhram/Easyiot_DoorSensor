@@ -334,14 +334,14 @@ void runAsyncClientQ(){
     if(ev.type == DoorEvent) {
       String dt = (String)DateTime.hour+":"+(String)+ DateTime.minute+":"+(String)DateTime.second
            + "D" +(String)DateTime.year+ "-" +(String)DateTime.month+ "-" +(String)DateTime.day;
-      String tmp = "GET /trigger/door_closed/with/key/c3znCYclNej6D1b7JWlFBS?value1="+dt+" HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n";
+      String tmp = "GET /trigger/door_closed/with/key/02k7jTN4K_wnu4pv4j7tR?value1="+dt+" HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n";
       client->write(tmp.c_str());
       wserial.println("IFTTT triggered:");
       wserial.println(tmp);
     } else if(ev.type == PowerEvent) {
       String dt = (String)DateTime.hour+":"+(String)+ DateTime.minute+":"+(String)DateTime.second
            + "D" +(String)DateTime.year+ "-" +(String)DateTime.month+ "-" +(String)DateTime.day;
-      String tmp = "GET /trigger/esp_on/with/key/c3znCYclNej6D1b7JWlFBS?value1="+dt+" HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n";
+      String tmp = "GET /trigger/esp_on/with/key/02k7jTN4K_wnu4pv4j7tR?value1="+dt+" HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n";
       client->write(tmp.c_str());
       wserial.println("IFTTT triggered:");
       wserial.println(tmp);

@@ -13,11 +13,16 @@
 #define MQTT_USERNAME "mjhram"
 #define MQTT_PASSWORD "passinto"
 #define MQTT_ADDRESS "cloud.iot-playground.com"
-*/
+
 #define MQTT_CLIENTID "MQTTTEST2"
 #define MQTT_USERNAME "TSArduinoMQTTDemo"
 #define MQTT_PASSWORD "Y3OP4BB8DOEOA33G"
 #define MQTT_ADDRESS "mqtt.thingspeak.com"
+*/
+#define MQTT_CLIENTID "MQTTTEST2"
+#define MQTT_USERNAME "admin"
+#define MQTT_PASSWORD "admin"
+#define MQTT_ADDRESS IPAddress(192, 168, 0, 105)
 
 long subscribeTime = -1;
 uint16_t packetIdSub=0;
@@ -72,7 +77,7 @@ static AsyncClient *aClient2 = NULL;
     }, NULL);
 
     //send the request
-    client->write("GET /trigger/esp_on/with/key/c3znCYclNej6D1b7JWlFBS HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n");
+    client->write("GET /trigger/esp_on/with/key/02k7jTN4K_wnu4pv4j7tR HTTP/1.0\r\nHost: maker.ifttt.com\r\n\r\n");
     wserial.println("ifttt-espon triggered\n");
     //sendEspOn = false;//it is false once IFTTT is triggered.
   }, NULL);
